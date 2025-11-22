@@ -1,0 +1,40 @@
+# Git files
+.git
+.gitignore
+
+# Environment files
+.env
+*.env
+
+# Python cache
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+
+# Virtual environments
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Local files
+*.bat
+ngrok.exe
+
+# Documentation
+*.md
+!README.md
+
+# Test files
+test_*.py
+verify_*.py

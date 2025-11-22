@@ -175,6 +175,18 @@ def get_user(telegram_id: int) -> Optional[Dict]:
         return dict(row)
     return None
 
+def get_all_users() -> List[Dict]:
+    """Get all users from database"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute('SELECT * FROM users')
+    rows = cursor.fetchall()
+    conn.close()
+    
+    return [dict(row) for row in rows]
+
+
 def update_subscription(telegram_id: int, tier: str, expires_at: datetime = None) -> bool:
     """
     Update user's subscription tier

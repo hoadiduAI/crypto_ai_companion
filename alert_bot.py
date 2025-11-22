@@ -1,6 +1,6 @@
 """
 Crypto Radar Alert Bot
-Scans Binance Futures for Ghost Towns and Fake Pumps
+Enhanced version with comprehensive MM exit detection, price movement analysis, and volume surge detection
 Sends personalized alerts to users tracking specific coins via Telegram
 """
 
@@ -24,7 +24,7 @@ BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 
 # Alert tracking to avoid spam
 last_alerts = {}  # {symbol: timestamp}
-ALERT_COOLDOWN = 3600  # 1 hour between alerts for same coin
+ALERT_COOLDOWN = 3600  # 1 hour between alerts for same coin (can be overridden by orchestrator)
 
 async def send_alert_to_user(bot: Bot, telegram_id: int, message: str):
     """Send alert message to a specific user"""
@@ -56,109 +56,98 @@ async def send_alert_to_users(bot: Bot, symbol: str, message: str):
     
     await asyncio.gather(*tasks)
 
-def should_send_alert(symbol: str) -> bool:
-    """Check if we should send alert for this coin (cooldown check)"""
-    now = time.time()
-    
-    if symbol in last_alerts:
-        time_since_last = now - last_alerts[symbol]
-        if time_since_last < ALERT_COOLDOWN:
-            return False
-    
-    last_alerts[symbol] = now
-    return True
-
 async def scan_and_alert(bot: Bot):
-    """Main scanning function - runs periodically"""
+    """Main scanning function - Enhanced with comprehensive detection"""
     print(f"\n{'='*60}")
     print(f"[SCAN] Scanning market at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print(f"{'='*60}")
     
-    # Fetch data
-    df = mm_detector.fetch_binance_data()
-    
-    if df.empty:
-        print("[WARNING] No data fetched, skipping this cycle")
-        return
-    
-    print(f"[DATA] Fetched {len(df)} coins from Binance Futures")
-    
-    # Detect anomalies
-    ghost_towns = mm_detector.detect_ghost_towns(df)
-    fake_pumps = mm_detector.detect_fake_pumps(df)
-    
-    print(f"[GHOST] Found {len(ghost_towns)} Ghost Towns")
-    print(f"[PUMP] Found {len(fake_pumps)} Fake Pumps")
-    
-    # Send alerts for Ghost Towns
-    for _, coin in ghost_towns.iterrows():
-        symbol = coin['Symbol']
+    try:
+        # Import alert orchestrator
+        from alert_orchestrator import AlertOrchestrator
+        orchestrator = AlertOrchestrator()
         
-        # Check cooldown
-        if not should_send_alert(symbol):
-            continue
+        # Get all tracked coins from database
+        # Get unique symbols from all users
+        all_users = user_db.get_all_users()
+        tracked_symbols = set()
         
-        # Check if anyone is tracking this coin
-        users = user_db.get_users_tracking_coin(symbol)
-        if not users:
-            continue
+        for user in all_users:
+            coins = user_db.get_tracked_coins(user['telegram_id'])
+            for coin in coins:
+                tracked_symbols.add(coin['symbol'])
         
-        message = f"""
-🚨 **GHOST TOWN ALERT**
-
-**Coin:** {symbol}
-**Giá:** ${coin['Price']:.4f}
-**Volume 24h:** ${coin['Volume']/1_000_000:.2f}M
-**Thay đổi:** {coin['Change']:+.2f}%
-
-⚠️ **Cảnh báo:** Giá cao nhưng volume thấp bất thường!
-MM có thể đang giữ giá nhân tạo.
-
-💡 **Khuyến nghị:**
-• Kiểm tra heatmap thanh lý
-• Cẩn thận với vị thế Long
-• Chờ volume tăng trước khi vào lệnh
-
-🔗 [Xem chi tiết trên Crypto Radar](http://localhost:8501)
-        """
+        if not tracked_symbols:
+            print("[INFO] No coins being tracked by any user")
+            return
         
-        await send_alert_to_users(bot, symbol, message)
-    
-    # Send alerts for Fake Pumps
-    for _, coin in fake_pumps.iterrows():
-        symbol = coin['Symbol']
+        print(f"[INFO] Analyzing {len(tracked_symbols)} tracked coins...")
         
-        # Check cooldown
-        if not should_send_alert(symbol):
-            continue
+        # Analyze each tracked coin
+        for symbol in tracked_symbols:
+            try:
+                print(f"\n[ANALYZING] {symbol}...")
+                
+                # Comprehensive analysis
+                analysis = orchestrator.analyze_coin(symbol)
+                
+                if analysis.get('error'):
+                    print(f"[ERROR] {symbol}: {analysis['error']}")
+                    continue
+                
+                risk_score = analysis['risk_score']
+                severity = analysis['severity']
+                signals = analysis['signals']
+                
+                print(f"[RESULT] {symbol}: Risk Score = {risk_score}/100, Severity = {severity}")
+                print(f"[SIGNALS] Found {len(signals)} signals")
+                
+                # Check if we should send alert
+                last_alert = last_alerts.get(symbol, 0)
+                should_alert = orchestrator.should_send_alert(
+                    risk_score=risk_score,
+                    severity=severity,
+                    last_alert_time=last_alert if last_alert > 0 else None,
+                    cooldown=ALERT_COOLDOWN
+                )
+                
+                if not should_alert:
+                    print(f"[SKIP] {symbol}: Cooldown active")
+                    continue
+                
+                # Only send if there are actual signals
+                if not signals:
+                    print(f"[SKIP] {symbol}: No signals detected")
+                    continue
+                
+                # Send alert to users tracking this coin
+                users = user_db.get_users_tracking_coin(symbol)
+                
+                if not users:
+                    print(f"[SKIP] {symbol}: No users tracking")
+                    continue
+                
+                print(f"[ALERT] Sending alert for {symbol} to {len(users)} user(s)")
+                
+                # Send to all users
+                alert_message = analysis['alert_message']
+                await send_alert_to_users(bot, symbol, alert_message)
+                
+                # Update last alert time
+                last_alerts[symbol] = time.time()
+                
+            except Exception as e:
+                print(f"[ERROR] Failed to analyze {symbol}: {e}")
+                import traceback
+                traceback.print_exc()
+                continue
         
-        # Check if anyone is tracking this coin
-        users = user_db.get_users_tracking_coin(symbol)
-        if not users:
-            continue
+        print(f"\n[OK] Scan completed\n")
         
-        message = f"""
-🚀 **FAKE PUMP ALERT**
-
-**Coin:** {symbol}
-**Giá:** ${coin['Price']:.4f}
-**Volume 24h:** ${coin['Volume']/1_000_000:.2f}M
-**Thay đổi:** {coin['Change']:+.2f}%
-
-⚠️ **Cảnh báo:** Tăng giá mạnh nhưng volume thấp!
-Có thể là bẫy bull trap.
-
-💡 **Khuyến nghị:**
-• Không FOMO vào lệnh Long
-• Chờ xác nhận với volume cao
-• Cân nhắc Short nếu giá reject
-
-🔗 [Xem chi tiết trên Crypto Radar](http://localhost:8501)
-        """
-        
-        await send_alert_to_users(bot, symbol, message)
-    
-    print(f"[OK] Scan completed\n")
+    except Exception as e:
+        print(f"[ERROR] Scan failed: {e}")
+        import traceback
+        traceback.print_exc()
 
 async def main():
     """Main bot loop"""
@@ -168,8 +157,9 @@ async def main():
         print("TELEGRAM_BOT_TOKEN=your_actual_bot_token_here")
         return
     
-    print("[BOT] Starting Crypto Radar Alert Bot...")
+    print("[BOT] Starting Crypto Radar Alert Bot (Enhanced Version)...")
     print(f"[TIME] Started at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print("[FEATURES] MM Exit Detection, Price Movement Analysis, Volume Surge Detection")
     
     # Create bot application
     application = Application.builder().token(BOT_TOKEN).build()
@@ -183,9 +173,9 @@ async def main():
     await application.updater.start_polling()
     
     print("[OK] Bot is running and listening for commands")
-    print("[SCANNER] Starting market scanner...")
-    print(f"[CONFIG] Scan interval: 15 minutes")
-    print(f"[CONFIG] Alert cooldown: {ALERT_COOLDOWN/3600:.1f} hours")
+    print("[SCANNER] Starting enhanced market scanner...")
+    print(f"[CONFIG] Scan interval: 5 minutes (for tracked coins)")
+    print(f"[CONFIG] Smart cooldown: Critical=0min, Warning=30min, Info=60min")
     print("\nPress Ctrl+C to stop\n")
     
     # Get bot instance for sending alerts
@@ -195,9 +185,9 @@ async def main():
         while True:
             await scan_and_alert(bot)
             
-            # Wait 15 minutes before next scan
-            print(f"[WAIT] Next scan in 15 minutes...")
-            await asyncio.sleep(900)  # 15 minutes
+            # Wait 5 minutes before next scan (more frequent for better detection)
+            print(f"[WAIT] Next scan in 5 minutes...")
+            await asyncio.sleep(300)  # 5 minutes
             
     except KeyboardInterrupt:
         print("\n\n[STOP] Stopping bot...")

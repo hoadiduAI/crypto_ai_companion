@@ -203,6 +203,9 @@ if 'user' in st.session_state:
         selected_coin = st.selectbox("Chọn coin để phân tích:", tracked_symbols)
         
         if selected_coin:
+            # Import alert orchestrator
+            from alert_orchestrator import AlertOrchestrator
+            
             # Get coin data
             coin_data = df[df['Symbol'] == selected_coin]
             
@@ -214,7 +217,7 @@ if 'user' in st.session_state:
                 vol = coin_data['Volume']
                 change_24h = coin_data['Change']
                 
-                # Display metrics
+                # Display basic metrics
                 col1, col2, col3 = st.columns(3)
                 with col1:
                     st.metric("Giá Hiện Tại", f"${price:.4f}")
@@ -225,7 +228,108 @@ if 'user' in st.session_state:
                 
                 st.markdown("---")
                 
-                # Position Health Check
+                # ==================== COMPREHENSIVE ANALYSIS ====================
+                
+                st.subheader("🎯 Phân Tích Toàn Diện")
+                
+                with st.spinner(f"Đang phân tích {selected_coin}..."):
+                    try:
+                        orchestrator = AlertOrchestrator()
+                        analysis = orchestrator.analyze_coin(selected_coin)
+                        
+                        if analysis.get('error'):
+                            st.error(f"Lỗi khi phân tích: {analysis['error']}")
+                        else:
+                            risk_score = analysis['risk_score']
+                            severity = analysis['severity']
+                            signals = analysis['signals']
+                            recommendation = analysis['recommendation']
+                            
+                            # Risk Score Display
+                            col_risk1, col_risk2 = st.columns([1, 3])
+                            
+                            with col_risk1:
+                                # Risk score with color
+                                if risk_score >= 80:
+                                    st.markdown(f"### 🔴 {risk_score}/100")
+                                    st.error("CRITICAL")
+                                elif risk_score >= 60:
+                                    st.markdown(f"### 🟠 {risk_score}/100")
+                                    st.warning("WARNING")
+                                elif risk_score >= 40:
+                                    st.markdown(f"### 🟡 {risk_score}/100")
+                                    st.info("CAUTION")
+                                else:
+                                    st.markdown(f"### 🟢 {risk_score}/100")
+                                    st.success("NORMAL")
+                            
+                            with col_risk2:
+                                # Progress bar
+                                if risk_score >= 80:
+                                    st.progress(risk_score / 100, text=f"Risk Score: {risk_score}/100 - NGUY HIỂM CAO")
+                                elif risk_score >= 60:
+                                    st.progress(risk_score / 100, text=f"Risk Score: {risk_score}/100 - CẢNH BÁO")
+                                elif risk_score >= 40:
+                                    st.progress(risk_score / 100, text=f"Risk Score: {risk_score}/100 - THEO DÕI")
+                                else:
+                                    st.progress(risk_score / 100, text=f"Risk Score: {risk_score}/100 - BÌNH THƯỜNG")
+                            
+                            st.markdown("---")
+                            
+                            # Detected Signals
+                            if signals:
+                                st.subheader("🔍 Tín Hiệu Phát Hiện")
+                                
+                                for i, signal in enumerate(signals, 1):
+                                    signal_type = signal['type']
+                                    signal_severity = signal['severity']
+                                    signal_message = signal['message']
+                                    signal_data = signal.get('data', {})
+                                    
+                                    # Color based on severity
+                                    if signal_severity == 'critical':
+                                        st.error(f"**{i}. {signal_type.upper().replace('_', ' ')}**")
+                                    elif signal_severity == 'warning':
+                                        st.warning(f"**{i}. {signal_type.upper().replace('_', ' ')}**")
+                                    else:
+                                        st.info(f"**{i}. {signal_type.upper().replace('_', ' ')}**")
+                                    
+                                    st.write(signal_message)
+                                    
+                                    # Show detailed data
+                                    if signal_data:
+                                        with st.expander("Chi tiết"):
+                                            for key, value in signal_data.items():
+                                                if isinstance(value, float):
+                                                    st.write(f"- **{key}**: {value:.2f}")
+                                                else:
+                                                    st.write(f"- **{key}**: {value}")
+                            else:
+                                st.success("✅ Không phát hiện tín hiệu bất thường")
+                            
+                            st.markdown("---")
+                            
+                            # Recommendation
+                            st.subheader("💡 Khuyến Nghị")
+                            
+                            if risk_score >= 80:
+                                st.error(recommendation)
+                            elif risk_score >= 60:
+                                st.warning(recommendation)
+                            elif risk_score >= 40:
+                                st.info(recommendation)
+                            else:
+                                st.success(recommendation)
+                            
+                    except Exception as e:
+                        st.error(f"Lỗi khi phân tích: {e}")
+                        import traceback
+                        st.code(traceback.format_exc())
+                
+                st.markdown("---")
+                
+                # ==================== POSITION HEALTH CHECK ====================
+                
                 st.subheader("🛡️ Position Health Check")
                 
                 user_position = st.radio("Vị thế của bạn:", ["Chưa có lệnh (Watching)", "Đang Short", "Đang Long"], horizontal=True)

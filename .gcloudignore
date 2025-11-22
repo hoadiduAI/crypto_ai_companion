@@ -1,0 +1,56 @@
+# Similar to .dockerignore but for gcloud builds
+.git
+.gitignore
+.gitattributes
+
+# Environment files
+.env
+*.env
+
+# Python cache
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environments
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Local files
+*.bat
+ngrok.exe
+
+# Documentation (keep README)
+*.md
+!README.md
+
+# Test files
+test_*.py
+verify_*.py
+demo_*.py
+get_chat_id.py
+
+# Deployment configs for other platforms
+fly.toml
+render.yaml
+Procfile
+KOYEB_DEPLOY.md
+FLY_DEPLOY.md
+PYTHONANYWHERE_DEPLOY.md
+DEPLOYMENT_GUIDE.md
+GITHUB_SETUP.md
+
+# Database (will be created in Cloud Storage)
+data/
+*.db
+*.sqlite

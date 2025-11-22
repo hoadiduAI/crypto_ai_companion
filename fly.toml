@@ -1,0 +1,21 @@
+# fly.toml app configuration file
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+
+app = "crypto-radar-bot"
+primary_region = "sin"  # Singapore - closest to Vietnam
+
+[build]
+
+[env]
+  # Add any non-secret environment variables here
+
+[processes]
+  app = "python alert_bot.py"
+
+# No HTTP service needed for Telegram bot
+# Remove [http_service] section
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  memory_mb = 256
