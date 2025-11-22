@@ -10,33 +10,62 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 
 def fetch_binance_data():
-    """Fetches ticker data from Binance Futures"""
-    exchange = ccxt.binance({
-        'options': {'defaultType': 'future'},
-        'enableRateLimit': True
-    })
+    """Fetches ticker data from Binance Futures (Public API to avoid region blocks)"""
+    import requests
+    
+    # Try Binance Futures Public API directly (often works better than ccxt from US IPs)
     try:
-        tickers = exchange.fetch_tickers()
+        url = "https://fapi.binance.com/fapi/v1/ticker/24hr"
+        response = requests.get(url, timeout=10)
+        response.raise_for_status()
+        tickers = response.json()
+        
         data = []
-        for symbol, ticker in tickers.items():
-            if '/USDT' in symbol and ':USDT' in symbol:
-                price = ticker.get('last', 0)
-                volume_usdt = ticker.get('quoteVolume', 0)
-                percentage = ticker.get('percentage', 0)
+        for ticker in tickers:
+            symbol = ticker['symbol']
+            if symbol.endswith('USDT'):
+                # Convert symbol format (BTCUSDT -> BTC/USDT)
+                display_symbol = f"{symbol[:-4]}/{symbol[-4:]}"
                 
-                if price is None or volume_usdt is None:
-                    continue
-                    
+                price = float(ticker.get('lastPrice', 0))
+                volume_usdt = float(ticker.get('quoteVolume', 0))
+                percentage = float(ticker.get('priceChangePercent', 0))
+                
                 data.append({
-                    'Symbol': symbol.replace(':USDT', ''),
+                    'Symbol': display_symbol,
                     'Price': price,
                     'Volume': volume_usdt,
                     'Change': percentage
                 })
         return pd.DataFrame(data)
+        
     except Exception as e:
-        print(f"[ERROR] Error fetching data: {e}")
-        return pd.DataFrame()
+        print(f"[ERROR] Binance API failed: {e}")
+        
+        # Fallback: Try CoinGecko API (No IP block)
+        try:
+            print("[INFO] Trying CoinGecko fallback...")
+            url = "https://api.coingecko.com/api/v3/coins/markets"
+            params = {
+                'vs_currency': 'usd',
+                'order': 'market_cap_desc',
+                'per_page': 100,
+                'page': 1,
+                'sparkline': 'false'
+            }
+            response = requests.get(url, params=params, timeout=10)
+            data = []
+            for coin in response.json():
+                data.append({
+                    'Symbol': f"{coin['symbol'].upper()}/USDT",
+                    'Price': coin['current_price'],
+                    'Volume': coin['total_volume'],
+                    'Change': coin['price_change_percentage_24h']
+                })
+            return pd.DataFrame(data)
+        except Exception as e2:
+            print(f"[ERROR] CoinGecko fallback failed: {e2}")
+            return pd.DataFrame()
 
 def fetch_klines(symbol: str, interval: str = '5m', limit: int = 50) -> pd.DataFrame:
     """
