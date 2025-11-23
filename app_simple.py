@@ -211,6 +211,39 @@ if selected_coin:
         
         st.markdown("---")
 
+        # ==================== 🤖 AI PILOT INSIGHT (BETA) ====================
+        from ai_insight import generate_ai_insight
+        
+        # Calculate risk first to pass to AI
+        orchestrator = AlertOrchestrator()
+        analysis = orchestrator.analyze_coin(selected_coin)
+        risk_score = analysis['risk_score'] if not analysis.get('error') else 0
+        signals = analysis['signals'] if not analysis.get('error') else []
+        
+        ai_report = generate_ai_insight(selected_coin, price, change_24h, vol, risk_score, signals)
+        
+        with st.container():
+            st.subheader("🤖 AI Pilot Insight (Beta)")
+            st.caption("Phân tích tổng hợp & Khuyến nghị hành động dựa trên dữ liệu thị trường:")
+            
+            # TL;DR Box
+            st.info(ai_report['tldr'])
+            
+            # Deep Analysis & Conclusion
+            col_ai1, col_ai2 = st.columns([2, 1])
+            
+            with col_ai1:
+                st.markdown("### 🧠 Phân Tích Chi Tiết")
+                st.markdown(ai_report['body'])
+                
+            with col_ai2:
+                st.markdown("### 🏁 Kết Luận")
+                st.success(ai_report['conclusion'])
+                
+        st.markdown("---")
+
+        # ==================== ON-CHAIN & WHALES RADAR ====================
+
         # ==================== ON-CHAIN & WHALES RADAR ====================
         
         st.subheader("🕵️ On-Chain & Whales Radar")
