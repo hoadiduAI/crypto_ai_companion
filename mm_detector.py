@@ -16,7 +16,7 @@ def fetch_binance_data():
     # Try Binance Futures Public API directly (often works better than ccxt from US IPs)
     try:
         url = "https://fapi.binance.com/fapi/v1/ticker/24hr"
-        response = requests.get(url, timeout=10)
+        response = requests.get(url, timeout=5) # Short timeout to fail fast
         response.raise_for_status()
         tickers = response.json()
         
@@ -37,7 +37,7 @@ def fetch_binance_data():
                     'Volume': volume_usdt,
                     'Change': percentage
                 })
-        return pd.DataFrame(data)
+        return pd.DataFrame(data), "Binance Futures"
         
     except Exception as e:
         print(f"[ERROR] Binance API failed: {e}")
@@ -49,7 +49,7 @@ def fetch_binance_data():
             params = {
                 'vs_currency': 'usd',
                 'order': 'market_cap_desc',
-                'per_page': 100,
+                'per_page': 250, # Fetch more coins
                 'page': 1,
                 'sparkline': 'false'
             }
@@ -62,10 +62,10 @@ def fetch_binance_data():
                     'Volume': coin['total_volume'],
                     'Change': coin['price_change_percentage_24h']
                 })
-            return pd.DataFrame(data)
+            return pd.DataFrame(data), "CoinGecko (Global Vol)"
         except Exception as e2:
             print(f"[ERROR] CoinGecko fallback failed: {e2}")
-            return pd.DataFrame()
+            return pd.DataFrame(), "Error"
 
 def fetch_klines(symbol: str, interval: str = '5m', limit: int = 50) -> pd.DataFrame:
     """

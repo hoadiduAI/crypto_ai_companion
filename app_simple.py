@@ -83,14 +83,18 @@ st.caption("Phát hiện Ghost Towns & Fake Pumps - Bảo vệ vị thế của 
 
 # Load data
 with st.spinner('Đang quét dữ liệu từ Binance Futures...'):
-    df = fetch_data()
+    df, data_source = fetch_data()
     current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
 if df.empty:
     st.error("❌ Không thể kết nối Binance. Vui lòng thử lại sau.")
     st.stop()
 
-st.info(f"⏰ Dữ liệu cập nhật lúc: **{current_time}** (Tự động refresh sau 5 phút)")
+# Display Data Source Info
+if "CoinGecko" in data_source:
+    st.warning(f"⚠️ **Lưu ý:** Dữ liệu được lấy từ **{data_source}** do kết nối đến Binance bị chậm. Volume hiển thị là **Tổng Volume toàn thị trường**.")
+else:
+    st.info(f"✅ Dữ liệu từ: **{data_source}** | Cập nhật: **{current_time}** (Tự động refresh sau 5 phút)")
 
 # ==================== IMPROVED COIN SELECTOR ====================
 
@@ -156,12 +160,18 @@ if selected_coin:
         vol = coin_data['Volume']
         change_24h = coin_data['Change']
         
+        # Determine Volume Label based on Source
+        if "CoinGecko" in data_source:
+            vol_label = "Vol 24h (Global - All Exchanges)"
+        else:
+            vol_label = "Vol 24h (Binance Futures)"
+            
         # Display basic metrics
         col1, col2, col3 = st.columns(3)
         with col1:
             st.metric("Giá Hiện Tại", f"${price:.4f}")
         with col2:
-            st.metric("Vol 24h (Binance Futures)", f"${vol/1_000_000:.2f}M")
+            st.metric(vol_label, f"${vol/1_000_000:.2f}M")
         with col3:
             st.metric("Biến Động 24h", f"{change_24h:+.2f}%", delta=f"{change_24h:+.2f}%")
         
