@@ -161,10 +161,30 @@ if selected_coin:
         with col1:
             st.metric("Giá Hiện Tại", f"${price:.4f}")
         with col2:
-            st.metric("Volume 24h", f"${vol/1_000_000:.2f}M")
+            st.metric("Vol 24h (Binance Futures)", f"${vol/1_000_000:.2f}M")
         with col3:
             st.metric("Biến Động 24h", f"{change_24h:+.2f}%", delta=f"{change_24h:+.2f}%")
         
+        st.markdown("---")
+
+        # ==================== ON-CHAIN & WHALES RADAR ====================
+        
+        st.subheader("🕵️ On-Chain & Whales Radar")
+        st.caption("Theo dõi dòng tiền thông minh và ví cá mập:")
+        
+        base_symbol = selected_coin.split('/')[0]
+        
+        col_link1, col_link2, col_link3, col_link4 = st.columns(4)
+        
+        with col_link1:
+            st.link_button("🦈 Arkham (Soi Ví)", f"https://platform.arkhamintelligence.com/explorer/token/{base_symbol}", use_container_width=True)
+        with col_link2:
+            st.link_button("🔓 Token Unlocks", f"https://token.unlocks.app/{base_symbol.lower()}", use_container_width=True)
+        with col_link3:
+            st.link_button("🫧 Bubblemaps", f"https://app.bubblemaps.io/eth/token/{base_symbol.lower()}", use_container_width=True)
+        with col_link4:
+            st.link_button("📊 Coinglass (Data)", f"https://www.coinglass.com/currencies/{base_symbol}", use_container_width=True)
+            
         st.markdown("---")
         
         # ==================== COMPREHENSIVE ANALYSIS ====================
