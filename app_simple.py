@@ -239,6 +239,8 @@ if selected_coin:
             with col_ai2:
                 st.markdown("### 🏁 Kết Luận")
                 st.success(ai_report['conclusion'])
+            
+            st.caption("ℹ️ *Dữ liệu được phân tích từ Binance Futures (Giá, Volume, Order Book). Tính năng soi ví On-chain (Holder Analysis) sẽ được cập nhật trong phiên bản sau.*")
                 
         st.markdown("---")
 

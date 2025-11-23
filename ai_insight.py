@@ -38,31 +38,35 @@ def generate_ai_insight(symbol, price, change_24h, volume, risk_score, signals):
     
     # Volume Analysis
     if volume > 100_000_000:
-        analysis_points.append(f"- **Dòng tiền:** Rất mạnh (${volume/1_000_000:.1f}M). Cá mập đang hoạt động tích cực.")
+        analysis_points.append(f"- **Dòng tiền:** Rất mạnh (**${volume/1_000_000:.1f}M** > $100M). Cá mập đang hoạt động tích cực.")
     elif volume < 5_000_000:
-        analysis_points.append(f"- **Thanh khoản:** Kém (${volume/1_000_000:.1f}M). Cẩn thận trượt giá (slippage) khi vào lệnh lớn.")
+        analysis_points.append(f"- **Thanh khoản:** Kém (**${volume/1_000_000:.1f}M** < $5M). Rủi ro trượt giá (slippage) cao.")
     else:
-        analysis_points.append(f"- **Volume:** Ổn định ở mức ${volume/1_000_000:.1f}M, đủ để trade ngắn hạn.")
+        analysis_points.append(f"- **Volume:** Ổn định (**${volume/1_000_000:.1f}M**), đủ thanh khoản để trade ngắn hạn.")
         
     # Volatility Analysis
     if is_volatile:
-        analysis_points.append(f"- **Biến động:** Biên độ dao động lớn, cơ hội cao nhưng rủi ro cháy tài khoản cũng lớn.")
+        analysis_points.append(f"- **Biến động:** Rất mạnh (**{abs(change_24h):.1f}%** trong 24h). Cơ hội lớn đi kèm rủi ro cháy tài khoản cao.")
+    else:
+        analysis_points.append(f"- **Biến động:** Thấp (**{abs(change_24h):.1f}%**). Thị trường đang tích lũy.")
     
     # Signal Specifics
     if is_ghost_town:
-        analysis_points.append("- **Cấu trúc lệnh:** Order book mỏng, dễ bị thao túng giá chỉ với volume nhỏ.")
+        analysis_points.append("- **Cấu trúc lệnh:** Phát hiện tín hiệu **Ghost Town** (Giá tăng nhưng Volume giảm). Dấu hiệu thao túng.")
+    if is_fake_pump:
+        analysis_points.append("- **Bất thường:** Phát hiện **Fake Pump** (Giá đẩy ảo không có volume hỗ trợ).")
     
     analysis_body = "\n".join(analysis_points)
     
     # 4. Generate Conclusion (The "Action")
     if is_high_risk:
-        conclusion = "🛑 **Khuyến nghị:** Tránh FOMO lúc này. Nếu đang có lãi hãy chốt lời từng phần. Tuyệt đối không DCA (trung bình giá) khi chưa có tín hiệu đảo chiều rõ ràng."
+        conclusion = f"🛑 **Khuyến nghị:** Rủi ro quá cao (**Risk Score: {risk_score}/100**). Tránh FOMO, bảo toàn vốn là ưu tiên."
     elif is_safe and not is_dump:
-        conclusion = "✅ **Khuyến nghị:** Có thể cân nhắc vị thế Long ngắn hạn (Scalp) nếu giữ được vùng hỗ trợ hiện tại. Stoploss chặt chẽ."
+        conclusion = f"✅ **Khuyến nghị:** An toàn (**Risk Score: {risk_score}/100**). Có thể tìm điểm vào Long (Scalp) nếu giữ được hỗ trợ."
     elif is_dump:
-        conclusion = "👀 **Khuyến nghị:** Quan sát thêm. Đừng vội 'bắt dao rơi'. Chờ giá ổn định (sideway) ít nhất 4-6 nến H1 nữa."
+        conclusion = f"👀 **Khuyến nghị:** Đang xả mạnh (**-{abs(change_24h):.1f}%**). Đừng bắt dao rơi, chờ sideway."
     else:
-        conclusion = "👀 **Khuyến nghị:** Kiên nhẫn chờ đợi. Thị trường chưa rõ xu hướng. Bảo toàn vốn là ưu tiên hàng đầu."
+        conclusion = "👀 **Khuyến nghị:** Thị trường chưa rõ xu hướng. Kiên nhẫn chờ đợi tín hiệu xác nhận."
 
     return {
         "tldr": tldr,
