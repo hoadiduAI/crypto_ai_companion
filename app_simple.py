@@ -96,6 +96,40 @@ if "CoinGecko" in data_source:
 else:
     st.info(f"✅ Dữ liệu từ: **{data_source}** | Cập nhật: **{current_time}** (Tự động refresh sau 5 phút)")
 
+# ==================== 🏆 TOP MARKET VOLUME ====================
+
+with st.expander("🏆 Top Giao Dịch Sôi Động Nhất (Volume Leaderboard)", expanded=False):
+    st.caption("Dòng tiền đang đổ vào đâu? (Sắp xếp theo Volume từ cao xuống thấp)")
+    
+    # Sort by Volume descending
+    top_volume_df = df.sort_values(by='Volume', ascending=False).head(15).copy()
+    
+    # Format for display
+    display_df = top_volume_df.copy()
+    display_df['Price'] = display_df['Price'].apply(lambda x: f"${x:.4f}")
+    display_df['Change'] = display_df['Change'].apply(lambda x: f"{x:+.2f}%")
+    # Keep Volume as number for column config, will format in st.dataframe
+    
+    # Display interactive table
+    st.dataframe(
+        display_df[['Symbol', 'Price', 'Change', 'Volume']],
+        use_container_width=True,
+        column_config={
+            "Symbol": st.column_config.TextColumn("Coin", help="Cặp giao dịch"),
+            "Price": st.column_config.TextColumn("Giá"),
+            "Change": st.column_config.TextColumn("Biến Động 24h"),
+            "Volume": st.column_config.ProgressColumn(
+                "Volume 24h ($)",
+                help="Khối lượng giao dịch 24h",
+                format="$%.2f",
+                min_value=0,
+                max_value=top_volume_df['Volume'].max(),
+            ),
+        },
+        hide_index=True,
+    )
+    st.caption("💡 *Click vào tiêu đề cột để sắp xếp lại theo ý muốn.*")
+
 # ==================== IMPROVED COIN SELECTOR ====================
 
 st.header("🔍 Chọn Coin Để Phân Tích")
