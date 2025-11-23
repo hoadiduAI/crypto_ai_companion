@@ -272,15 +272,37 @@ if selected_coin:
         long_ratio = oi_data['long_ratio']
         short_ratio = oi_data['short_ratio']
         
+        # Estimate liquidation levels
+        liq_est = estimate_liquidation_volumes(price, total_oi, long_ratio, short_ratio)
+        
         col_liq1, col_liq2 = st.columns(2)
         with col_liq1:
             st.markdown(f"**🔴 Phe Short ({short_ratio*100:.1f}%)**")
             st.progress(short_ratio, text="Short Interest")
-            st.caption(f"Vùng thanh lý ước tính: ${price*1.02:.4f} - ${price*1.05:.4f}")
+            
+            if liq_est:
+                s_data = liq_est['short']
+                st.markdown(f"""
+                - 💀 **x50** (Giá **${s_data['x50']['price']:,.2f}**): 🔥 **${s_data['x50']['volume']/1_000_000:.1f}M**
+                - 💀 **x20** (Giá **${s_data['x20']['price']:,.2f}**): 🔥 **${s_data['x20']['volume']/1_000_000:.1f}M**
+                - 💀 **x10** (Giá **${s_data['x10']['price']:,.2f}**): 🔥 **${s_data['x10']['volume']/1_000_000:.1f}M**
+                """)
+            else:
+                st.caption("Chưa có dữ liệu thanh lý chi tiết.")
+
         with col_liq2:
             st.markdown(f"**🟢 Phe Long ({long_ratio*100:.1f}%)**")
             st.progress(long_ratio, text="Long Interest")
-            st.caption(f"Vùng thanh lý ước tính: ${price*0.98:.4f} - ${price*0.95:.4f}")
+            
+            if liq_est:
+                l_data = liq_est['long']
+                st.markdown(f"""
+                - 🩸 **x50** (Giá **${l_data['x50']['price']:,.2f}**): 💧 **${l_data['x50']['volume']/1_000_000:.1f}M**
+                - 🩸 **x20** (Giá **${l_data['x20']['price']:,.2f}**): 💧 **${l_data['x20']['volume']/1_000_000:.1f}M**
+                - 🩸 **x10** (Giá **${l_data['x10']['price']:,.2f}**): 💧 **${l_data['x10']['volume']/1_000_000:.1f}M**
+                """)
+            else:
+                st.caption("Chưa có dữ liệu thanh lý chi tiết.")
             
         base_symbol = selected_coin.split('/')[0]
         st.link_button(f"🔎 Xem Heatmap Chi Tiết trên Coinglass", f"https://www.coinglass.com/liquidation/{base_symbol}")
