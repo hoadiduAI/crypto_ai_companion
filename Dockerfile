@@ -1,29 +1,20 @@
-# Use Python 3.11 slim image
-FROM python:3.11-slim
+# Use official Python runtime as a parent image
+FROM python:3.10-slim
 
-# Set working directory
+# Set the working directory in the container
 WORKDIR /app
 
-# Copy requirements first for better caching
-COPY requirements.txt .
+# Copy the current directory contents into the container at /app
+COPY . /app
 
-# Install Python dependencies
+# Install any needed packages specified in requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy all application files
-COPY . .
-
-# Expose port for Streamlit (Cloud Run default: 8080)
+# Make port 8080 available to the world outside this container
 EXPOSE 8080
 
-# Set environment variable for port
+# Define environment variable
 ENV PORT=8080
 
-# Run Streamlit app
-CMD streamlit run app_simple.py \
-  --server.port=$PORT \
-  --server.address=0.0.0.0 \
-  --server.headless=true \
-  --server.runOnSave=false \
-  --server.fileWatcherType=none \
-  --browser.gatherUsageStats=false
+# Run uvicorn when the container launches
+CMD ["uvicorn", "ai_chat_api:app", "--host", "0.0.0.0", "--port", "8080"]

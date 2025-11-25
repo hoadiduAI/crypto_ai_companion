@@ -119,323 +119,255 @@ def estimate_liquidation_volumes(price, oi, long_ratio, short_ratio):
         }
     }
 
-# ==================== MAIN APP ====================
+# ==================== CUSTOM CSS (CYBERPUNK THEME) ====================
+st.markdown("""
+<style>
+    /* Main Background */
+    .stApp {
+        background-color: #050505;
+        background-image: radial-gradient(circle at 50% 50%, #1a1a2e 0%, #050505 60%);
+    }
+    
+    /* Fonts */
+    @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;700&family=Roboto+Mono:wght@400;700&display=swap');
+    
+    h1, h2, h3 {
+        font-family: 'Rajdhani', sans-serif;
+        text-transform: uppercase;
+        color: #fff;
+        text-shadow: 0 0 10px rgba(0, 242, 255, 0.5);
+    }
+    
+    /* Hero Title */
+    .hero-title {
+        font-size: 4rem !important;
+        text-align: center;
+        background: -webkit-linear-gradient(0deg, #fff, #00f2ff);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin-bottom: 0.5rem;
+    }
+    
+    .hero-subtitle {
+        font-family: 'Roboto Mono', monospace;
+        text-align: center;
+        color: #8892b0;
+        margin-bottom: 3rem;
+        font-size: 1rem;
+    }
 
-# Header
-st.title("📡 Crypto Radar: AI Pilot Companion")
-st.caption("Phát hiện Ghost Towns & Fake Pumps - Bảo vệ vị thế của bạn khỏi Market Maker")
+    /* Search Box Container */
+    .search-container {
+        max-width: 700px;
+        margin: 0 auto;
+        padding: 2px;
+        background: linear-gradient(90deg, #00f2ff, #bc13fe);
+        border-radius: 10px;
+        box-shadow: 0 0 20px rgba(0, 242, 255, 0.2);
+    }
+    
+    .search-inner {
+        background: #0a0a0a;
+        border-radius: 8px;
+        padding: 20px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
 
-# Login Sidebar
+    /* Custom Input Styling */
+    div[data-baseweb="input"] {
+        background-color: transparent !important;
+        border: none !important;
+        color: white !important;
+    }
+    
+    input {
+        color: white !important;
+        font-family: 'Roboto Mono', monospace !important;
+        font-size: 1.2rem !important;
+    }
+
+    /* Neon Button */
+    div.stButton > button {
+        background: linear-gradient(90deg, #00f2ff, #00a8ff);
+        color: black !important;
+        font-family: 'Rajdhani', sans-serif !important;
+        font-weight: 700 !important;
+        font-size: 1.2rem !important;
+        border: none;
+        border-radius: 5px;
+        padding: 0.5rem 2rem;
+        transition: all 0.3s ease;
+        text-transform: uppercase;
+        width: 100%;
+    }
+    
+    div.stButton > button:hover {
+        box-shadow: 0 0 20px #00f2ff;
+        transform: scale(1.02);
+    }
+
+    /* Cards/Metrics */
+    div[data-testid="stMetric"] {
+        background-color: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(0, 242, 255, 0.2);
+        padding: 15px;
+        border-radius: 10px;
+        backdrop-filter: blur(10px);
+    }
+    
+    div[data-testid="stMetricLabel"] {
+        color: #8892b0;
+    }
+    
+    div[data-testid="stMetricValue"] {
+        color: #00f2ff;
+        font-family: 'Roboto Mono', monospace;
+    }
+
+    /* Expander */
+    .streamlit-expanderHeader {
+        background-color: rgba(255, 255, 255, 0.02);
+        border: 1px solid #333;
+        color: #fff;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# ==================== MAIN LAYOUT ====================
+
+# Login Sidebar (Keep it but maybe minimal)
 login_sidebar()
 
-# Load data
-with st.spinner('Đang quét dữ liệu từ Binance Futures...'):
-    df = fetch_data()
-    current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+# 1. Header Section
+col1, col2 = st.columns([1, 5])
+with col1:
+    st.markdown("### 🌀 AI CRYPTO RADAR")
+with col2:
+    st.markdown('<div style="text-align: right; padding-top: 10px;"><span style="color: #00f2ff; border: 1px solid #00f2ff; padding: 2px 8px; border-radius: 4px; font-size: 0.8rem;">BETA v1.0</span></div>', unsafe_allow_html=True)
 
-if df.empty:
-    st.error("❌ Không thể kết nối Binance. Vui lòng thử lại sau.")
-    st.stop()
+st.markdown("<div style='height: 50px'></div>", unsafe_allow_html=True)
 
-st.info(f"⏰ Dữ liệu cập nhật lúc: **{current_time}** (Tự động refresh sau 5 phút)")
+# 2. Hero Section
+st.markdown('<h1 class="hero-title">RADAR TÍN HIỆU THỊ TRƯỜNG</h1>', unsafe_allow_html=True)
+st.markdown('<p class="hero-subtitle">Phân tích AI thời gian thực cho Trader. Nhập mã coin để nhận tín hiệu Long/Short<br>dựa trên dòng tiền và tâm lý thị trường mới nhất.</p>', unsafe_allow_html=True)
 
-# ==================== WATCHLIST SECTION (PROMINENT) ====================
+# 3. Search Section
+col_spacer1, col_search, col_spacer2 = st.columns([1, 2, 1])
 
-if 'user' in st.session_state:
-    st.header("📋 Danh Sách Theo Dõi Của Tôi")
-    user = st.session_state['user']
-    status = user_db.get_user_status(user['telegram_id'])
-    tracked_coins = user_db.get_tracked_coins(user['telegram_id'])
-    
-    # Display tracked coins as pills/cards
-    if tracked_coins:
-        st.write(f"**{len(tracked_coins)}/{status['limit']}** coins")
-        
-        # Create columns for pills
-        cols = st.columns(5)
-        for i, coin in enumerate(tracked_coins):
-            symbol = coin['symbol']
-            with cols[i % 5]:
-                col1, col2 = st.columns([3, 1])
-                with col1:
-                    st.markdown(f"**{symbol}**")
-                with col2:
-                    if st.button("❌", key=f"remove_{symbol}"):
-                        user_db.remove_tracked_coin(user['telegram_id'], symbol)
-                        st.rerun()
-    else:
-        st.info("Bạn chưa theo dõi coin nào. Thêm coin bên dưới để bắt đầu!")
-    
-    # Add coin section
-    with st.expander("➕ Thêm Coin Mới"):
-        search = st.text_input("🔍 Tìm kiếm coin:", placeholder="VD: BTC, ETH...")
-        
-        filtered_df = df.copy()
-        if search:
-            filtered_df = filtered_df[filtered_df['Symbol'].str.contains(search.upper())]
-        
-        # Show top 20 results
-        st.write("**Kết quả tìm kiếm:**")
-        for _, row in filtered_df.head(20).iterrows():
-            symbol = row['Symbol']
-            price = row['Price']
-            
-            col1, col2 = st.columns([4, 1])
-            with col1:
-                st.write(f"{symbol} - ${price:.4f}")
-            with col2:
-                if st.button("➕ Thêm", key=f"add_{symbol}"):
-                    if user_db.add_tracked_coin(user['telegram_id'], symbol):
-                        st.success(f"Đã thêm {symbol}!")
-                        st.rerun()
-                    else:
-                        st.error("Hết slot hoặc đã tồn tại!")
+with col_search:
+    with st.form("search_form"):
+        col_input, col_btn = st.columns([3, 1])
+        with col_input:
+            search_term = st.text_input("", placeholder="NHẬP MÃ CẶP (VD: BTC, ETH)...", label_visibility="collapsed")
+        with col_btn:
+            submitted = st.form_submit_button("PHÂN TÍCH")
+
+# 4. Analysis Result Section
+if submitted and search_term:
+    symbol = search_term.upper()
+    if '/USDT' not in symbol:
+        symbol += '/USDT'
     
     st.markdown("---")
+    st.markdown(f"### 📡 KẾT QUẢ PHÂN TÍCH: <span style='color:#00f2ff'>{symbol}</span>", unsafe_allow_html=True)
     
-    # ==================== ANALYSIS SECTION (FOR TRACKED COINS) ====================
-    
-    if tracked_coins:
-        st.header("📊 Phân Tích Chi Tiết")
+    with st.spinner('Đang quét dữ liệu từ Binance & Coinglass...'):
+        # Fetch Data
+        df = fetch_data()
+        coin_data = df[df['Symbol'] == symbol]
         
-        # Dropdown to select tracked coin
-        tracked_symbols = [c['symbol'] for c in tracked_coins]
-        selected_coin = st.selectbox("Chọn coin để phân tích:", tracked_symbols)
-        
-        if selected_coin:
-            # Import alert orchestrator
-            from alert_orchestrator import AlertOrchestrator
+        if not coin_data.empty:
+            row = coin_data.iloc[0]
+            oi_data = fetch_oi_and_ratio(symbol)
             
-            # Get coin data
-            coin_data = df[df['Symbol'] == selected_coin]
+            # Metrics Row
+            m1, m2, m3, m4 = st.columns(4)
+            m1.metric("Giá Hiện Tại", f"${row['Price']:.4f}")
+            m2.metric("Volume 24h", f"${row['Volume']/1_000_000:.1f}M")
+            m3.metric("Biến Động", f"{row['Change']:+.2f}%", delta=row['Change'])
+            m4.metric("Open Interest", f"${oi_data['oi']/1_000_000:.1f}M")
             
-            if coin_data.empty:
-                st.warning(f"Không tìm thấy dữ liệu cho {selected_coin}")
-            else:
-                coin_data = coin_data.iloc[0]
-                price = coin_data['Price']
-                vol = coin_data['Volume']
-                change_24h = coin_data['Change']
+            st.markdown("<div style='height: 20px'></div>", unsafe_allow_html=True)
+            
+            # AI Analysis Cards
+            c1, c2 = st.columns(2)
+            
+            with c1:
+                st.markdown("""
+                <div style="padding: 20px; border: 1px solid #333; border-radius: 10px; background: rgba(0,0,0,0.3);">
+                    <h4 style="color: #00f2ff; margin-top: 0;">🛡️ Dòng Tiền & Tâm Lý</h4>
+                """, unsafe_allow_html=True)
                 
-                # Display basic metrics
-                col1, col2, col3 = st.columns(3)
-                with col1:
-                    st.metric("Giá Hiện Tại", f"${price:.4f}")
-                with col2:
-                    st.metric("Volume 24h", f"${vol/1_000_000:.2f}M")
-                with col3:
-                    st.metric("Biến Động 24h", f"{change_24h:+.2f}%", delta=f"{change_24h:+.2f}%")
+                long_ratio = oi_data['long_ratio'] * 100
+                short_ratio = oi_data['short_ratio'] * 100
                 
-                st.markdown("---")
+                st.progress(long_ratio/100, text=f"Long: {long_ratio:.1f}% vs Short: {short_ratio:.1f}%")
                 
-                # ==================== COMPREHENSIVE ANALYSIS ====================
-                
-                st.subheader("🎯 Phân Tích Toàn Diện")
-                
-                with st.spinner(f"Đang phân tích {selected_coin}..."):
-                    try:
-                        orchestrator = AlertOrchestrator()
-                        analysis = orchestrator.analyze_coin(selected_coin)
-                        
-                        if analysis.get('error'):
-                            st.error(f"Lỗi khi phân tích: {analysis['error']}")
-                        else:
-                            risk_score = analysis['risk_score']
-                            severity = analysis['severity']
-                            signals = analysis['signals']
-                            recommendation = analysis['recommendation']
-                            
-                            # Risk Score Display
-                            col_risk1, col_risk2 = st.columns([1, 3])
-                            
-                            with col_risk1:
-                                # Risk score with color
-                                if risk_score >= 80:
-                                    st.markdown(f"### 🔴 {risk_score}/100")
-                                    st.error("CRITICAL")
-                                elif risk_score >= 60:
-                                    st.markdown(f"### 🟠 {risk_score}/100")
-                                    st.warning("WARNING")
-                                elif risk_score >= 40:
-                                    st.markdown(f"### 🟡 {risk_score}/100")
-                                    st.info("CAUTION")
-                                else:
-                                    st.markdown(f"### 🟢 {risk_score}/100")
-                                    st.success("NORMAL")
-                            
-                            with col_risk2:
-                                # Progress bar
-                                if risk_score >= 80:
-                                    st.progress(risk_score / 100, text=f"Risk Score: {risk_score}/100 - NGUY HIỂM CAO")
-                                elif risk_score >= 60:
-                                    st.progress(risk_score / 100, text=f"Risk Score: {risk_score}/100 - CẢNH BÁO")
-                                elif risk_score >= 40:
-                                    st.progress(risk_score / 100, text=f"Risk Score: {risk_score}/100 - THEO DÕI")
-                                else:
-                                    st.progress(risk_score / 100, text=f"Risk Score: {risk_score}/100 - BÌNH THƯỜNG")
-                            
-                            st.markdown("---")
-                            
-                            # Detected Signals
-                            if signals:
-                                st.subheader("🔍 Tín Hiệu Phát Hiện")
-                                
-                                for i, signal in enumerate(signals, 1):
-                                    signal_type = signal['type']
-                                    signal_severity = signal['severity']
-                                    signal_message = signal['message']
-                                    signal_data = signal.get('data', {})
-                                    
-                                    # Color based on severity
-                                    if signal_severity == 'critical':
-                                        st.error(f"**{i}. {signal_type.upper().replace('_', ' ')}**")
-                                    elif signal_severity == 'warning':
-                                        st.warning(f"**{i}. {signal_type.upper().replace('_', ' ')}**")
-                                    else:
-                                        st.info(f"**{i}. {signal_type.upper().replace('_', ' ')}**")
-                                    
-                                    st.write(signal_message)
-                                    
-                                    # Show detailed data
-                                    if signal_data:
-                                        with st.expander("Chi tiết"):
-                                            for key, value in signal_data.items():
-                                                if isinstance(value, float):
-                                                    st.write(f"- **{key}**: {value:.2f}")
-                                                else:
-                                                    st.write(f"- **{key}**: {value}")
-                            else:
-                                st.success("✅ Không phát hiện tín hiệu bất thường")
-                            
-                            st.markdown("---")
-                            
-                            # Recommendation
-                            st.subheader("💡 Khuyến Nghị")
-                            
-                            if risk_score >= 80:
-                                st.error(recommendation)
-                            elif risk_score >= 60:
-                                st.warning(recommendation)
-                            elif risk_score >= 40:
-                                st.info(recommendation)
-                            else:
-                                st.success(recommendation)
-                            
-                    except Exception as e:
-                        st.error(f"Lỗi khi phân tích: {e}")
-                        import traceback
-                        st.code(traceback.format_exc())
-                
-                st.markdown("---")
-                
-                # ==================== POSITION HEALTH CHECK ====================
-                
-                st.subheader("🛡️ Position Health Check")
-                
-                user_position = st.radio("Vị thế của bạn:", ["Chưa có lệnh (Watching)", "Đang Short", "Đang Long"], horizontal=True)
-                
-                # Fetch OI data
-                oi_data = fetch_oi_and_ratio(selected_coin)
-                total_oi = oi_data['oi']
-                long_ratio = oi_data['long_ratio']
-                short_ratio = oi_data['short_ratio']
-                
-                # Display market overview
-                st.markdown("**📊 Tổng Quan Thị Trường:**")
-                col_oi1, col_oi2, col_oi3 = st.columns(3)
-                with col_oi1:
-                    st.metric("Open Interest", f"${total_oi/1_000_000:.2f}M" if total_oi > 0 else "N/A")
-                with col_oi2:
-                    st.metric("Long", f"{long_ratio*100:.1f}%", delta=f"{(long_ratio-0.5)*100:+.1f}%")
-                with col_oi3:
-                    st.metric("Short", f"{short_ratio*100:.1f}%", delta=f"{(short_ratio-0.5)*100:+.1f}%")
-                
-                # MM Prediction
-                if total_oi > 0:
-                    if short_ratio > 0.55:
-                        st.success(f"🎯 **Dự đoán MM:** Có xu hướng đẩy giá **TĂNG** để quét Short (vì Short chiếm {short_ratio*100:.0f}%)")
-                    elif long_ratio > 0.55:
-                        st.error(f"🎯 **Dự đoán MM:** Có xu hướng đẩy giá **GIẢM** để quét Long (vì Long chiếm {long_ratio*100:.0f}%)")
-                    else:
-                        st.info(f"🎯 **Dự đoán MM:** Thị trường cân bằng. Khó dự đoán xu hướng.")
-                
-                st.markdown("---")
-                
-                # Liquidation Analysis
-                st.markdown("**⚡ Phân Tích Thanh Lý:**")
-                
-                base_symbol = selected_coin.split('/')[0]
-                coinglass_url = f"https://www.coinglass.com/liquidation/{base_symbol}"
-                st.link_button(f"🔎 Xem Heatmap trên Coinglass", coinglass_url)
-                
-                # Estimate liquidation levels
-                liq_est = estimate_liquidation_volumes(price, total_oi, long_ratio, short_ratio)
-                
-                col_liq1, col_liq2 = st.columns(2)
-                
-                with col_liq1:
-                    st.markdown("**🔴 Phe Short (Bị thanh lý khi giá TĂNG):**")
-                    if liq_est:
-                        short_data = liq_est['short']
-                        st.write(f"- 💀 **x50:** ${short_data['x50']['price']:.4f} (Vol: ${short_data['x50']['volume']/1_000_000:.2f}M)")
-                        st.write(f"- 💀 **x20:** ${short_data['x20']['price']:.4f} (Vol: ${short_data['x20']['volume']/1_000_000:.2f}M)")
-                        st.write(f"- 💀 **x10:** ${short_data['x10']['price']:.4f} (Vol: ${short_data['x10']['volume']/1_000_000:.2f}M)")
-                    else:
-                        st.write(f"- 💀 **x50:** ${price * 1.02:.4f}")
-                        st.write(f"- 💀 **x20:** ${price * 1.05:.4f}")
-                        st.write(f"- 💀 **x10:** ${price * 1.10:.4f}")
-                
-                with col_liq2:
-                    st.markdown("**🟢 Phe Long (Bị thanh lý khi giá GIẢM):**")
-                    if liq_est:
-                        long_data = liq_est['long']
-                        st.write(f"- 🩸 **x50:** ${long_data['x50']['price']:.4f} (Vol: ${long_data['x50']['volume']/1_000_000:.2f}M)")
-                        st.write(f"- 🩸 **x20:** ${long_data['x20']['price']:.4f} (Vol: ${long_data['x20']['volume']/1_000_000:.2f}M)")
-                        st.write(f"- 🩸 **x10:** ${long_data['x10']['price']:.4f} (Vol: ${long_data['x10']['volume']/1_000_000:.2f}M)")
-                    else:
-                        st.write(f"- 🩸 **x50:** ${price * 0.98:.4f}")
-                        st.write(f"- 🩸 **x20:** ${price * 0.95:.4f}")
-                        st.write(f"- 🩸 **x10:** ${price * 0.90:.4f}")
-    else:
-        st.info("Thêm coin vào danh sách theo dõi để xem phân tích chi tiết!")
+                if long_ratio > 60:
+                    st.error("⚠️ Cảnh báo: Phe Long quá đông (Crowded Trade). Dễ bị Long Squeeze.")
+                elif short_ratio > 60:
+                    st.success("✅ Cơ hội: Phe Short quá đông. Có thể có Short Squeeze (Đẩy giá lên).")
+                else:
+                    st.info("⚖️ Thị trường cân bằng.")
+                    
+                st.markdown("</div>", unsafe_allow_html=True)
 
-else:
-    st.warning("👆 Vui lòng đăng nhập ở Sidebar để sử dụng tính năng theo dõi và phân tích!")
+            with c2:
+                st.markdown("""
+                <div style="padding: 20px; border: 1px solid #333; border-radius: 10px; background: rgba(0,0,0,0.3);">
+                    <h4 style="color: #bc13fe; margin-top: 0;">🤖 AI Dự Đoán (MM Hunter)</h4>
+                """, unsafe_allow_html=True)
+                
+                # Simple Logic check (can be replaced with mm_logic later)
+                if row['Change'] > 3 and row['Volume'] < 10_000_000:
+                    st.warning("👻 Phát hiện: Fake Pump (Giá tăng nhưng Vol thấp).")
+                elif row['Change'] < -3 and row['Volume'] > 50_000_000:
+                    st.success("🐳 Phát hiện: Stopping Volume (Có lực bắt đáy mạnh).")
+                else:
+                    st.write("Chưa phát hiện hành vi thao túng rõ ràng.")
+                    
+                st.markdown("</div>", unsafe_allow_html=True)
+            
+            # Liquidation Analysis (Added back)
+            st.markdown("<div style='height: 20px'></div>", unsafe_allow_html=True)
+            st.subheader("⚡ Phân Tích Thanh Lý")
+            
+            liq_est = estimate_liquidation_volumes(row['Price'], oi_data['oi'], oi_data['long_ratio'], oi_data['short_ratio'])
+            
+            col_liq1, col_liq2 = st.columns(2)
+            with col_liq1:
+                st.markdown("**🔴 Phe Short (Bị thanh lý khi giá TĂNG):**")
+                if liq_est:
+                    short_data = liq_est['short']
+                    st.write(f"- 💀 **x50:** ${short_data['x50']['price']:.4f} (Vol: ${short_data['x50']['volume']/1_000_000:.2f}M)")
+                    st.write(f"- 💀 **x20:** ${short_data['x20']['price']:.4f} (Vol: ${short_data['x20']['volume']/1_000_000:.2f}M)")
+                else:
+                    st.write("Không đủ dữ liệu.")
+            
+            with col_liq2:
+                st.markdown("**🟢 Phe Long (Bị thanh lý khi giá GIẢM):**")
+                if liq_est:
+                    long_data = liq_est['long']
+                    st.write(f"- 🩸 **x50:** ${long_data['x50']['price']:.4f} (Vol: ${long_data['x50']['volume']/1_000_000:.2f}M)")
+                    st.write(f"- 🩸 **x20:** ${long_data['x20']['price']:.4f} (Vol: ${long_data['x20']['volume']/1_000_000:.2f}M)")
+                else:
+                    st.write("Không đủ dữ liệu.")
+                
+        else:
+            st.error(f"Không tìm thấy dữ liệu cho {symbol}. Vui lòng kiểm tra lại mã.")
 
-# ==================== MARKET SCANNER (COLLAPSIBLE) ====================
-
-st.markdown("---")
-
-with st.expander("🔍 Quét Thị Trường (Ghost Towns & Fake Pumps)"):
-    # Sidebar filters
-    col_filter1, col_filter2 = st.columns(2)
-    with col_filter1:
-        min_price = st.number_input("Giá tối thiểu ($)", value=0.5)
-    with col_filter2:
-        max_vol = st.number_input("Volume tối đa (Triệu $)", value=10.0) * 1_000_000
+# 5. Footer / Placeholder (Only show if no search)
+if not submitted:
+    st.markdown("<div style='height: 50px'></div>", unsafe_allow_html=True)
+    col_ph1, col_ph2, col_ph3 = st.columns(3)
     
-    # Ghost Towns
-    st.subheader("👻 Ghost Towns (Thị Trấn Ma)")
-    st.info(f"Các coin có Giá > {min_price}$ nhưng Volume < {max_vol/1_000_000}M $. Dấu hiệu MM giữ giá.")
+    style_card = 'border: 1px dashed #333; padding: 30px; text-align: center; color: #555; border-radius: 10px;'
     
-    ghost_towns = mm_detector.detect_ghost_towns(df, min_price, max_vol)
-    
-    display_df = ghost_towns.copy()
-    display_df['Volume'] = display_df['Volume'].apply(lambda x: f"${x:,.0f}")
-    display_df['Price'] = display_df['Price'].apply(lambda x: f"${x:.4f}")
-    display_df['Change'] = display_df['Change'].apply(lambda x: f"{x:+.2f}%")
-    
-    st.dataframe(display_df[['Symbol', 'Price', 'Change', 'Volume']], use_container_width=True)
-
-    # Fake Pumps
-    st.subheader("🚀 Fake Pumps (Bơm Thổi Ảo)")
-    st.warning("Các coin tăng giá mạnh (>5%) nhưng Volume thấp. Cẩn thận Bull Trap.")
-    
-    fake_pumps = mm_detector.detect_fake_pumps(df, 5, 20_000_000)
-    
-    pump_df = fake_pumps.copy()
-    pump_df['Volume'] = pump_df['Volume'].apply(lambda x: f"${x:,.0f}")
-    pump_df['Price'] = pump_df['Price'].apply(lambda x: f"${x:.4f}")
-    pump_df['Change'] = pump_df['Change'].apply(lambda x: f"{x:+.2f}%")
-    
-    st.dataframe(pump_df[['Symbol', 'Price', 'Change', 'Volume']], use_container_width=True)
+    with col_ph1:
+        st.markdown(f'<div style="{style_card}">Waiting for Input...</div>', unsafe_allow_html=True)
+    with col_ph2:
+        st.markdown(f'<div style="{style_card}">Live News (Coming Soon)</div>', unsafe_allow_html=True)
+    with col_ph3:
+        st.markdown(f'<div style="{style_card}">Price Action (Coming Soon)</div>', unsafe_allow_html=True)

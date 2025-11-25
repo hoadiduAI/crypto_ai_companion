@@ -2,6 +2,7 @@ import streamlit as st
 import ccxt
 import pandas as pd
 from datetime import datetime
+import user_db
 import mm_detector
 
 # Streamlit Page Config
@@ -12,6 +13,19 @@ st.set_page_config(
 )
 
 # ==================== HELPER FUNCTIONS ====================
+
+@st.cache_data(ttl=3600)
+def fetch_all_symbols():
+    """Fetch all USDT futures symbols from Binance"""
+    try:
+        exchange = ccxt.binance({
+            'options': {'defaultType': 'future'}
+        })
+        markets = exchange.load_markets()
+        symbols = [market for market in markets if '/USDT' in market]
+        return sorted(symbols)
+    except:
+        return ["BTC/USDT", "ETH/USDT", "SOL/USDT", "BNB/USDT", "DOGE/USDT", "XRP/USDT"]
 
 @st.cache_data(ttl=300)
 def fetch_data():
@@ -74,277 +88,290 @@ def estimate_liquidation_volumes(price, oi, long_ratio, short_ratio):
             'total': long_oi
         }
     }
-# ==================== MAIN APP ====================
 
-# Load Custom UI
-import app_ui
-app_ui.load_custom_css()
-
-# Header
-app_ui.render_header()
-
-# Load data
-with st.spinner('Đang quét dữ liệu từ Binance Futures...'):
-    df, data_source = fetch_data()
-    current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-
-if df.empty:
-    st.error("❌ Không thể kết nối Binance. Vui lòng thử lại sau.")
-    st.stop()
-
-# Display Data Source Info
-if "CoinGecko" in data_source:
-    st.warning(f"⚠️ **Lưu ý:** Dữ liệu được lấy từ **{data_source}** do kết nối đến Binance bị chậm. Volume hiển thị là **Tổng Volume toàn thị trường**.")
-else:
-    st.info(f"✅ Dữ liệu từ: **{data_source}** | Cập nhật: **{current_time}** (Tự động refresh sau 5 phút)")
-
-# ==================== 🏆 TOP MARKET VOLUME ====================
-
-with st.expander("🏆 Top Giao Dịch Sôi Động Nhất (Volume Leaderboard)", expanded=False):
-    st.caption("Dòng tiền đang đổ vào đâu? (Sắp xếp theo Volume từ cao xuống thấp)")
+# ==================== CUSTOM CSS (FIXED FONT & BUTTON) ====================
+st.markdown("""
+<style>
+    /* 1. BACKGROUND & GLOBAL */
+    .stApp {
+        background-color: #000000;
+        background-image: 
+            radial-gradient(circle at 50% 0%, #1a1a40 0%, transparent 60%),
+            radial-gradient(circle at 50% 100%, #0d0d1a 0%, transparent 60%);
+    }
     
-    # Sort by Volume descending
-    top_volume_df = df.sort_values(by='Volume', ascending=False).head(15).copy()
+    /* Fonts - Using Inter for better Vietnamese support */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Rajdhani:wght@700&display=swap');
     
-    # Format for display
-    display_df = top_volume_df.copy()
-    display_df['Price'] = display_df['Price'].apply(lambda x: f"${x:.4f}")
-    display_df['Change'] = display_df['Change'].apply(lambda x: f"{x:+.2f}%")
-    # Keep Volume as number for column config, will format in st.dataframe
+    * {
+        font-family: 'Inter', sans-serif;
+    }
+
+    /* 2. NAVBAR */
+    .logo {
+        font-family: 'Rajdhani', sans-serif;
+        font-weight: 700;
+        font-size: 1.8rem;
+        background: linear-gradient(90deg, #00f2ff, #00a8ff);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        letter-spacing: 1px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
     
-    # Display interactive table
-    st.dataframe(
-        display_df[['Symbol', 'Price', 'Change', 'Volume']],
-        use_container_width=True,
-        column_config={
-            "Symbol": st.column_config.TextColumn("Coin", help="Cặp giao dịch"),
-            "Price": st.column_config.TextColumn("Giá"),
-            "Change": st.column_config.TextColumn("Biến Động 24h"),
-            "Volume": st.column_config.ProgressColumn(
-                "Volume 24h ($)",
-                help="Khối lượng giao dịch 24h",
-                format="$%.2f",
-                min_value=0,
-                max_value=top_volume_df['Volume'].max(),
-            ),
-        },
-        hide_index=True,
-    )
-    st.caption("💡 *Click vào tiêu đề cột để sắp xếp lại theo ý muốn.*")
+    .beta-tag {
+        border: 1px solid #00f2ff;
+        color: #00f2ff;
+        padding: 4px 12px;
+        border-radius: 4px;
+        font-family: 'Rajdhani', sans-serif;
+        font-weight: 600;
+        font-size: 0.8rem;
+        letter-spacing: 1px;
+        box-shadow: 0 0 10px rgba(0, 242, 255, 0.2);
+    }
 
-# ==================== IMPROVED COIN SELECTOR ====================
-
-st.header("🔍 Chọn Coin Để Phân Tích")
-
-# 1. Quick Select (Top Coins)
-st.caption("🔥 Phổ biến:")
-cols = st.columns(6)
-popular_coins = ["BTC/USDT", "ETH/USDT", "SOL/USDT", "BNB/USDT", "DOGE/USDT", "XRP/USDT"]
-
-# Initialize session state for coin selection if not exists
-if 'selected_coin_state' not in st.session_state:
-    st.session_state['selected_coin_state'] = popular_coins[0]
-
-# Create buttons for popular coins
-for i, coin in enumerate(popular_coins):
-    if cols[i].button(coin.split('/')[0], use_container_width=True):
-        st.session_state['selected_coin_state'] = coin
-        st.rerun()
-
-# 2. Smart Search Dropdown (Type to search)
-all_coins = df['Symbol'].tolist()
-
-# Find index of currently selected coin to set as default
-try:
-    current_index = all_coins.index(st.session_state['selected_coin_state'])
-except ValueError:
-    current_index = 0
-
-st.write("") # Spacing
-
-selected_coin = st.selectbox(
-    "📋 **Gõ tên coin vào đây để tìm nhanh (VD: gõ 'M' sẽ hiện MATIC, MANA...):**",
-    options=all_coins,
-    index=current_index,
-    key="main_coin_selector",
-    help="Hỗ trợ tìm kiếm: Chỉ cần gõ tên coin, danh sách sẽ tự lọc."
-)
-
-# Update session state when dropdown changes
-if selected_coin != st.session_state['selected_coin_state']:
-    st.session_state['selected_coin_state'] = selected_coin
-    st.rerun()
-
-st.markdown("---")
-
-# ==================== COMPREHENSIVE ANALYSIS ====================
-
-if selected_coin:
-    # Import alert orchestrator
-    from alert_orchestrator import AlertOrchestrator
+    /* 3. HERO TITLE */
+    .hero-title {
+        font-family: 'Rajdhani', sans-serif;
+        font-weight: 700;
+        font-size: 5rem !important;
+        text-align: center;
+        color: #ffffff !important;
+        margin-bottom: 0;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        line-height: 1.1;
+        text-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
+    }
     
-    # Get coin data
-    coin_data = df[df['Symbol'] == selected_coin]
+    .gradient-text {
+        background: linear-gradient(90deg, #00f2ff 0%, #bc13fe 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        font-weight: 800;
+        text-shadow: 0 0 40px rgba(0, 242, 255, 0.5);
+    }
     
-    if coin_data.empty:
-        st.warning(f"Không tìm thấy dữ liệu cho {selected_coin}")
-    else:
-        coin_data = coin_data.iloc[0]
-        price = coin_data['Price']
-        vol = coin_data['Volume']
-        change_24h = coin_data['Change']
+    .hero-subtitle {
+        font-family: 'Inter', sans-serif;
+        text-align: center;
+        color: #a0a0a0;
+        margin-top: 1rem;
+        margin-bottom: 3rem;
+        font-size: 1.1rem;
+        font-weight: 400;
+        letter-spacing: 0.5px;
+    }
+
+    /* 4. SEARCH BAR */
+    div[data-testid="stForm"] {
+        background: rgba(20, 20, 30, 0.8);
+        border: 1px solid rgba(0, 242, 255, 0.3);
+        border-radius: 12px;
+        padding: 15px;
+        box-shadow: 0 0 30px rgba(0, 242, 255, 0.1);
+        backdrop-filter: blur(10px);
+    }
+
+    /* Selectbox Styling */
+    div[data-baseweb="select"] > div {
+        background-color: #0a0a0a !important;
+        border: 1px solid #333 !important;
+        color: white !important;
+        border-radius: 8px !important;
+    }
+    
+    /* Dropdown Menu */
+    div[role="listbox"] ul {
+        background-color: #0a0a0a !important;
+    }
+    
+    div[role="option"] {
+        color: white !important;
+        font-family: 'Inter', sans-serif !important;
+    }
+    
+    div[role="option"]:hover {
+        background-color: #1a1a2e !important;
+        color: #00f2ff !important;
+    }
+
+    /* Analyze Button - FIXED HOVER BLUR */
+    div.stButton > button {
+        background: linear-gradient(90deg, #00f2ff, #0066ff);
+        color: #000 !important;
+        font-family: 'Rajdhani', sans-serif !important;
+        font-weight: 700 !important;
+        font-size: 1.1rem !important;
+        border: none;
+        border-radius: 8px;
+        padding: 0.6rem 2rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        width: 100%;
+        transition: all 0.3s ease;
+        height: 46px;
+        margin-top: 2px;
+    }
+    
+    div.stButton > button:hover {
+        box-shadow: 0 0 25px rgba(0, 242, 255, 0.6);
+        transform: translateY(-2px);
+        color: #000 !important; /* Ensure text stays black */
+        opacity: 1 !important;
+    }
+    
+    div.stButton > button:active {
+        color: #000 !important;
+    }
+
+    /* 5. PLACEHOLDER CARDS */
+    .placeholder-card {
+        border: 1px dashed #333;
+        border-radius: 12px;
+        padding: 40px 20px;
+        text-align: center;
+        color: #555;
+        font-family: 'Rajdhani', sans-serif;
+        font-weight: 600;
+        font-size: 1.2rem;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        background: rgba(0,0,0,0.3);
+        height: 100%;
+        transition: all 0.3s ease;
+    }
+    
+    .placeholder-card:hover {
+        border-color: #00f2ff;
+        color: #00f2ff;
+        box-shadow: 0 0 20px rgba(0, 242, 255, 0.1);
+    }
+
+</style>
+""", unsafe_allow_html=True)
+
+# ==================== MAIN LAYOUT ====================
+
+# 1. Navbar
+col_nav1, col_nav2 = st.columns([1, 1])
+with col_nav1:
+    st.markdown('<div class="logo">🌀 AI CRYPTO RADAR</div>', unsafe_allow_html=True)
+with col_nav2:
+    st.markdown("""
+        <div style="display: flex; justify-content: flex-end; gap: 20px; align-items: center;">
+            <span style="color: #666; font-family: 'Rajdhani'; font-size: 0.9rem;">QUÉT THỊ TRƯỜNG</span>
+            <span style="color: #666; font-family: 'Rajdhani'; font-size: 0.9rem;">TÍN HIỆU</span>
+            <span class="beta-tag">BETA v1.0</span>
+        </div>
+    """, unsafe_allow_html=True)
+
+st.markdown("<div style='height: 60px'></div>", unsafe_allow_html=True)
+
+# 2. Hero Section
+st.markdown("""
+    <h1 class="hero-title">
+        RADAR <span class="gradient-text">TÍN HIỆU</span> THỊ TRƯỜNG
+    </h1>
+""", unsafe_allow_html=True)
+
+st.markdown("""
+    <p class="hero-subtitle">
+        Phân tích AI thời gian thực cho Trader. Nhập mã coin để nhận tín hiệu Long/Short<br>
+        dựa trên tin tức và tâm lý thị trường mới nhất.
+    </p>
+""", unsafe_allow_html=True)
+
+# 3. Search Section (Updated with FULL COIN LIST)
+col_spacer1, col_search, col_spacer2 = st.columns([1, 1.5, 1])
+
+# Fetch all available symbols
+all_symbols = fetch_all_symbols()
+
+with col_search:
+    with st.form("search_form"):
+        c1, c2 = st.columns([3, 1])
+        with c1:
+            # Use selectbox with full list
+            search_term = st.selectbox(
+                "Chọn Coin", 
+                options=[""] + all_symbols, 
+                index=0,
+                placeholder="NHẬP MÃ CẶP (VD: BTC, ETH)...",
+                label_visibility="collapsed"
+            )
+        with c2:
+            submitted = st.form_submit_button("PHÂN TÍCH")
+
+# 4. Content Section
+if submitted and search_term:
+    symbol = search_term.upper()
+    if '/USDT' not in symbol:
+        symbol += '/USDT'
+    
+    st.markdown("<div style='height: 30px'></div>", unsafe_allow_html=True)
+    st.markdown(f"### 📡 KẾT QUẢ: <span style='color:#00f2ff'>{symbol}</span>", unsafe_allow_html=True)
+    
+    with st.spinner('Đang quét dữ liệu...'):
+        df = fetch_data()
+        coin_data = df[df['Symbol'] == symbol]
         
-        # Calculate Analysis & Risk
-        orchestrator = AlertOrchestrator()
-        analysis = orchestrator.analyze_coin(selected_coin)
-        risk_score = analysis['risk_score'] if not analysis.get('error') else 0
-        signals = analysis['signals'] if not analysis.get('error') else []
-        
-        # Generate AI Insight
-        from ai_insight import generate_ai_insight
-        ai_report = generate_ai_insight(selected_coin, price, change_24h, vol, risk_score, signals)
-        
-        # Determine Signal & Trade Setup (Simulation Logic)
-        signal_type = "NEUTRAL"
-        if risk_score >= 70: signal_type = "SHORT"
-        elif risk_score <= 30: signal_type = "LONG"
-        
-        # Volatility-based Setup
-        volatility = price * 0.02 # Est 2% volatility base
-        if abs(change_24h) > 5: volatility = price * 0.04
-        
-        entry = price
-        if signal_type == "LONG":
-            target = price + (volatility * 1.5)
-            stoploss = price - (volatility * 0.8)
-        elif signal_type == "SHORT":
-            target = price - (volatility * 1.5)
-            stoploss = price + (volatility * 0.8)
+        if not coin_data.empty:
+            row = coin_data.iloc[0]
+            oi_data = fetch_oi_and_ratio(symbol)
+            
+            # Metrics
+            m1, m2, m3, m4 = st.columns(4)
+            m1.metric("Giá", f"${row['Price']:.4f}")
+            m2.metric("Volume 24h", f"${row['Volume']/1_000_000:.1f}M")
+            m3.metric("Biến Động", f"{row['Change']:+.2f}%", delta=row['Change'])
+            m4.metric("Open Interest", f"${oi_data['oi']/1_000_000:.1f}M")
+            
+            st.markdown("<div style='height: 20px'></div>", unsafe_allow_html=True)
+            
+            # Cards
+            c1, c2 = st.columns(2)
+            with c1:
+                st.markdown('<div class="analysis-card">', unsafe_allow_html=True)
+                st.markdown("#### 🛡️ Dòng Tiền & Tâm Lý")
+                long_ratio = oi_data['long_ratio'] * 100
+                short_ratio = oi_data['short_ratio'] * 100
+                st.progress(long_ratio/100, text=f"Long: {long_ratio:.1f}% vs Short: {short_ratio:.1f}%")
+                
+                if long_ratio > 60:
+                    st.error("⚠️ Cảnh báo: Phe Long quá đông. Dễ bị Long Squeeze.")
+                elif short_ratio > 60:
+                    st.success("✅ Cơ hội: Phe Short quá đông. Có thể có Short Squeeze.")
+                else:
+                    st.info("⚖️ Thị trường cân bằng.")
+                st.markdown('</div>', unsafe_allow_html=True)
+                
+            with c2:
+                st.markdown('<div class="analysis-card">', unsafe_allow_html=True)
+                st.markdown("#### 🤖 AI Dự Đoán")
+                if row['Change'] > 3 and row['Volume'] < 10_000_000:
+                    st.warning("👻 Fake Pump: Giá tăng nhưng Vol thấp.")
+                elif row['Change'] < -3 and row['Volume'] > 50_000_000:
+                    st.success("🐳 Stopping Volume: Lực bắt đáy mạnh.")
+                else:
+                    st.write("Chưa có tín hiệu thao túng rõ ràng.")
+                st.markdown('</div>', unsafe_allow_html=True)
+                
         else:
-            target = price * 1.01
-            stoploss = price * 0.99
+            st.error(f"Không tìm thấy {symbol}")
 
-        # ==================== DASHBOARD UI ====================
-        
-        # 1. HUD SECTION (Signal + TL;DR + Setup)
-        col_hud_1, col_hud_2 = st.columns([1, 2])
-        
-        with col_hud_1:
-            app_ui.render_signal_badge(signal_type, 100 - risk_score if signal_type == "LONG" else risk_score)
-            
-            # Mini Sentiment Chart
-            st.caption("📈 Xu Hướng Tâm Lý")
-            chart_data = pd.DataFrame({'Value': [50, 52, 48, 55, 60, 58, 65, 70] if signal_type == "LONG" else [50, 48, 52, 45, 40, 42, 35, 30]})
-            st.area_chart(chart_data, height=120, color="#00ff9d" if signal_type == "LONG" else "#ff003c")
-            
-        with col_hud_2:
-            app_ui.render_tldr(ai_report['tldr'])
-            app_ui.render_trade_setup(f"${entry:.4f}", f"${target:.4f}", f"${stoploss:.4f}")
-
-        st.markdown("---")
-
-        # 2. RADAR METRICS (Risk & Volume)
-        st.subheader("📡 Radar Thao Túng & Dữ Liệu")
-        
-        col_m1, col_m2, col_m3 = st.columns(3)
-        with col_m1:
-            st.metric("Risk Score", f"{risk_score}/100", delta="Cao" if risk_score > 70 else "Thấp", delta_color="inverse")
-        with col_m2:
-            vol_label = "Volume (Binance)" if "Binance" in data_source else "Volume (Global)"
-            st.metric(vol_label, f"${vol/1_000_000:.2f}M", delta="Ghost Town" if vol < 5000000 else "Active")
-        with col_m3:
-            st.metric("Biến Động 24h", f"{change_24h:+.2f}%", delta=f"{change_24h:+.2f}%")
-
-        # 3. DETAILED REPORT
-        with st.expander("📄 Báo Cáo Chi Tiết (AI Analysis)", expanded=True):
-            st.markdown(ai_report['body'])
-            st.caption(f"🏁 **Kết Luận:** {ai_report['conclusion']}")
-            st.caption("ℹ️ *Dữ liệu được phân tích từ Binance Futures.*")
-
-        st.markdown("---")
-
-        # 4. LIQUIDATION HEATMAP (Simulated)
-        st.subheader("⚡ Heatmap Thanh Lý (Mô Phỏng)")
-        
-        # Fetch OI data for context
-        oi_data = fetch_oi_and_ratio(selected_coin)
-        total_oi = oi_data['oi']
-        long_ratio = oi_data['long_ratio']
-        short_ratio = oi_data['short_ratio']
-        
-        # Estimate liquidation levels
-        liq_est = estimate_liquidation_volumes(price, total_oi, long_ratio, short_ratio)
-        
-        col_liq1, col_liq2 = st.columns(2)
-        with col_liq1:
-            st.markdown(f"**🔴 Phe Short ({short_ratio*100:.1f}%)**")
-            st.progress(short_ratio, text="Short Interest")
-            
-            if liq_est:
-                s_data = liq_est['short']
-                st.markdown(f"""
-                - 💀 **x50** (Giá **${s_data['x50']['price']:,.2f}**): 🔥 **${s_data['x50']['volume']/1_000_000:.1f}M**
-                - 💀 **x20** (Giá **${s_data['x20']['price']:,.2f}**): 🔥 **${s_data['x20']['volume']/1_000_000:.1f}M**
-                - 💀 **x10** (Giá **${s_data['x10']['price']:,.2f}**): 🔥 **${s_data['x10']['volume']/1_000_000:.1f}M**
-                """)
-            else:
-                st.caption("Chưa có dữ liệu thanh lý chi tiết.")
-
-        with col_liq2:
-            st.markdown(f"**🟢 Phe Long ({long_ratio*100:.1f}%)**")
-            st.progress(long_ratio, text="Long Interest")
-            
-            if liq_est:
-                l_data = liq_est['long']
-                st.markdown(f"""
-                - 🩸 **x50** (Giá **${l_data['x50']['price']:,.2f}**): 💧 **${l_data['x50']['volume']/1_000_000:.1f}M**
-                - 🩸 **x20** (Giá **${l_data['x20']['price']:,.2f}**): 💧 **${l_data['x20']['volume']/1_000_000:.1f}M**
-                - 🩸 **x10** (Giá **${l_data['x10']['price']:,.2f}**): 💧 **${l_data['x10']['volume']/1_000_000:.1f}M**
-                """)
-            else:
-                st.caption("Chưa có dữ liệu thanh lý chi tiết.")
-            
-        base_symbol = selected_coin.split('/')[0]
-        st.link_button(f"🔎 Xem Heatmap Chi Tiết trên Coinglass", f"https://www.coinglass.com/liquidation/{base_symbol}")
-
-# ==================== MARKET SCANNER (COLLAPSIBLE) ====================
-
-st.markdown("---")
-
-with st.expander("🔍 Quét Thị Trường (Ghost Towns & Fake Pumps)"):
-    # Sidebar filters
-    col_filter1, col_filter2 = st.columns(2)
-    with col_filter1:
-        min_price = st.number_input("Giá tối thiểu ($)", value=0.5)
-    with col_filter2:
-        max_vol = st.number_input("Volume tối đa (Triệu $)", value=10.0) * 1_000_000
+else:
+    # Placeholder Boxes (Only show when no search)
+    st.markdown("<div style='height: 50px'></div>", unsafe_allow_html=True)
     
-    # Ghost Towns
-    st.subheader("👻 Ghost Towns (Thị Trấn Ma)")
-    st.info(f"Các coin có Giá > {min_price}$ nhưng Volume < {max_vol/1_000_000}M $. Dấu hiệu MM giữ giá.")
+    col_ph1, col_ph2, col_ph3 = st.columns(3)
     
-    ghost_towns = mm_detector.detect_ghost_towns(df, min_price, max_vol)
-    
-    display_df = ghost_towns.copy()
-    display_df['Volume'] = display_df['Volume'].apply(lambda x: f"${x:,.0f}")
-    display_df['Price'] = display_df['Price'].apply(lambda x: f"${x:.4f}")
-    display_df['Change'] = display_df['Change'].apply(lambda x: f"{x:+.2f}%")
-    
-    st.dataframe(display_df[['Symbol', 'Price', 'Change', 'Volume']], use_container_width=True)
-
-    # Fake Pumps
-    st.subheader("🚀 Fake Pumps (Bơm Thổi Ảo)")
-    st.warning("Các coin tăng giá mạnh (>5%) nhưng Volume thấp. Cẩn thận Bull Trap.")
-    
-    fake_pumps = mm_detector.detect_fake_pumps(df, 5, 20_000_000)
-    
-    pump_df = fake_pumps.copy()
-    pump_df['Volume'] = pump_df['Volume'].apply(lambda x: f"${x:,.0f}")
-    pump_df['Price'] = pump_df['Price'].apply(lambda x: f"${x:.4f}")
-    pump_df['Change'] = pump_df['Change'].apply(lambda x: f"{x:+.2f}%")
-    
-    st.dataframe(pump_df[['Symbol', 'Price', 'Change', 'Volume']], use_container_width=True)
-
-# Footer
-st.markdown("---")
-st.caption("💡 **Lưu ý:** Đây là công cụ phân tích, không phải lời khuyên đầu tư. Luôn DYOR (Do Your Own Research)!")
+    with col_ph1:
+        st.markdown('<div class="placeholder-card">CHỜ NHẬP LIỆU</div>', unsafe_allow_html=True)
+    with col_ph2:
+        st.markdown('<div class="placeholder-card">TIN TỨC LIVE</div>', unsafe_allow_html=True)
+    with col_ph3:
+        st.markdown('<div class="placeholder-card">HÀNH ĐỘNG GIÁ</div>', unsafe_allow_html=True)

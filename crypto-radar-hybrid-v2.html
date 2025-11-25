@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Crypto Radar - Hybrid Analysis</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Rajdhani:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet">
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Rajdhani', sans-serif;
+            background: #050505;
+            color: #e0e0e0;
+            min-height: 100vh;
+            background-image:
+                radial-gradient(ellipse at 50% 0%, #1a1a40 0%, transparent 60%),
+                radial-gradient(ellipse at 50% 100%, #0d0d1a 0%, transparent 60%);
+            background-attachment: fixed;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            padding: 40px 20px;
+            border-bottom: 1px solid rgba(0, 240, 255, 0.2);
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 3rem;
+            font-weight: 900;
+            margin-bottom: 10px;
+            background: linear-gradient(135deg, #00f0ff 0%, #ff003c 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-shadow: 0 0 30px rgba(0, 240, 255, 0.3);
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            color: #6b7280;
+        }
+
+        .mode-badge {
+            display: inline-block;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            margin-top: 10px;
+        }
+
+        .mode-free {
+            background: rgba(0, 240, 255, 0.2);
+            color: #00f0ff;
+            border: 1px solid #00f0ff;
+        }
+
+        .mode-ai {
+            background: rgba(168, 85, 247, 0.2);
+            color: #a855f7;
+            border: 1px solid #a855f7;
+        }
+
+        .hero {
+            text-align: center;
+            margin-bottom: 60px;
+        }
+
+        .hero h2 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+            color: white;
+        }
+
+        .hero .gradient-text {
+            background: linear-gradient(to right, #00f0ff, #a855f7);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .hero p {
+            font-size: 1.2rem;
+            color: #9ca3af;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .search-container {
+            max-width: 700px;
+            margin: 0 auto 60px;
+            position: relative;
+        }
+
+        .search-glow {
+            position: absolute;
+            inset: -2px;
+            background: linear-gradient(to right, #00f0ff, #ff003c);
+            border-radius: 12px;
+            opacity: 0.3;
+            filter: blur(10px);
+            z-index: 0;
+        }
+
+        .search-box {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            gap: 10px;
+            background: #121420;
+            border: 1px solid #374151;
+            border-radius: 12px;
+            padding: 12px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+        }
+
+        .search-box input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            outline: none;
+            color: white;
+            font-size: 1.1rem;
+            font-family: 'Orbitron', sans-serif;
+            text-transform: uppercase;
+            padding: 8px 12px;
+        }
+
+        .search-box input::placeholder {
+            color: #6b7280;
+        }
+
+        .search-box button {
+            background: #00f0ff;
+            color: black;
+            border: none;
+            padding: 12px 32px;
+            border-radius: 8px;
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 700;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .search-box button:hover {
+            background: #00d4e0;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(0, 240, 255, 0.4);
+        }
+
+        .search-box button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .loader {
+            text-align: center;
+            padding: 60px 20px;
+        }
+
+        .radar-circle {
+            width: 200px;
+            height: 200px;
+            margin: 0 auto 30px;
+            border: 3px solid rgba(0, 240, 255, 0.2);
+            border-radius: 50%;
+            position: relative;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        .radar-line {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 2px;
+            height: 100px;
+            background: linear-gradient(to bottom, #00f0ff, transparent);
+            transform-origin: top center;
+            animation: rotate 2s linear infinite;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+
+            50% {
+                transform: scale(1.05);
+                opacity: 0.8;
+            }
+        }
+
+        @keyframes rotate {
+            from {
+                transform: translate(-50%, -50%) rotate(0deg);
+            }
+
+            to {
+                transform: translate(-50%, -50%) rotate(360deg);
+            }
+        }
+
+        .results {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .signal-card {
+            background: rgba(18, 20, 32, 0.8);
+            border: 1px solid rgba(0, 240, 255, 0.3);
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .signal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .signal-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+
+        .signal-badge {
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 700;
+            font-size: 0.9rem;
+        }
+
+        .signal-long {
+            background: rgba(0, 255, 157, 0.2);
+            color: #00ff9d;
+            border: 1px solid #00ff9d;
+        }
+
+        .signal-short {
+            background: rgba(255, 0, 60, 0.2);
+            color: #ff003c;
+            border: 1px solid #ff003c;
+        }
+
+        .signal-neutral {
+            background: rgba(107, 114, 128, 0.2);
+            color: #6b7280;
+            border: 1px solid #6b7280;
+        }
+
+        .signal-content {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-top: 20px;
+        }
+
+        .metric {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 16px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .metric-label {
+            font-size: 0.85rem;
+            color: #6b7280;
+            margin-bottom: 8px;
+        }
+
+        .metric-value {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: #00f0ff;
+        }
+
+        .alert-box {
+            background: rgba(255, 165, 0, 0.1);
+            border: 1px solid rgba(255, 165, 0, 0.5);
+            border-radius: 12px;
+            padding: 16px;
+            margin-top: 16px;
+        }
+
+        .alert-box p {
+            color: #ffa500;
+            font-size: 0.95rem;
+            line-height: 1.6;
+        }
+
+        .error {
+            background: rgba(255, 0, 60, 0.1);
+            border: 1px solid rgba(255, 0, 60, 0.5);
+            color: #ff003c;
+            padding: 24px;
+            border-radius: 12px;
+            text-align: center;
+            max-width: 600px;
+            margin: 40px auto;
+        }
+
+        .error h3 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.3rem;
+            margin-bottom: 10px;
+        }
+
+        footer {
+            border-top: 1px solid #1f2937;
+            padding: 40px 20px;
+            margin-top: 80px;
+            background: black;
+            text-align: center;
+        }
+
+        footer p {
+            color: #6b7280;
+            font-size: 0.9rem;
+            margin-bottom: 10px;
+        }
+
+        footer .disclaimer {
+            color: #4b5563;
+            font-size: 0.8rem;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState } = React;
+
+        // ===== BINANCE API SERVICE =====
+        const BinanceService = {
+            baseUrl: 'https://api.binance.com/api/v3',
+
+            async getKlines(symbol, interval = '15m', limit = 100) {
+                try {
+                    const url = `${this.baseUrl}/klines?symbol=${symbol}USDT&interval=${interval}&limit=${limit}`;
+                    const response = await fetch(url);
+                    const data = await response.json();
+
+                    return data.map(k => ({
+                        time: k[0],
+                        open: parseFloat(k[1]),
+                        high: parseFloat(k[2]),
+                        low: parseFloat(k[3]),
+                        close: parseFloat(k[4]),
+                        volume: parseFloat(k[5])
+                    }));
+                } catch (error) {
+                    console.error('Binance API Error:', error);
+                    throw error;
+                }
+            },
+
+            async getOrderBook(symbol, limit = 20) {
+                try {
+                    const url = `${this.baseUrl}/depth?symbol=${symbol}USDT&limit=${limit}`;
+                    const response = await fetch(url);
+                    return await response.json();
+                } catch (error) {
+                    console.error('OrderBook Error:', error);
+                    throw error;
+                }
+            },
+
+            async get24hStats(symbol) {
+                try {
+                    const url = `${this.baseUrl}/ticker/24hr?symbol=${symbol}USDT`;
+                    const response = await fetch(url);
+                    return await response.json();
+                } catch (error) {
+                    console.error('24h Stats Error:', error);
+                    throw error;
+                }
+            }
+        };
+
+        // ===== MM HUNTER LOGIC =====
+        const MMHunter = {
+            // 1. SFP Detection (Swing Failure Pattern)
+            detectSFP(candles, lookback = 20) {
+                const last = candles[candles.length - 1];
+                const recent = candles.slice(-lookback, -1);
+                const recentHigh = Math.max(...recent.map(c => c.high));
+
+                const brokeHigh = last.high > recentHigh;
+                const closedBelow = last.close < recentHigh;
+                const avgVol = recent.reduce((sum, c) => sum + c.volume, 0) / recent.length;
+                const volSpike = last.volume > (avgVol * 1.5);
+
+                if (brokeHigh && closedBelow && volSpike) {
+                    return {
+                        detected: true,
+                        signal: 'SHORT',
+                        message: `📉 SFP ALERT: Quét thanh khoản tại $${recentHigh.toFixed(2)}. Short ngay!`,
+                        confidence: 85
+                    };
+                }
+                return { detected: false };
+            },
+
+            // 2. Stopping Volume Detection
+            detectStoppingVolume(candles) {
+                const last = candles[candles.length - 1];
+                const recent = candles.slice(-20);
+                const avgVol = recent.reduce((sum, c) => sum + c.volume, 0) / recent.length;
+
+                const isHighVol = last.volume > (avgVol * 2.5);
+                const body = Math.abs(last.close - last.open);
+                const lowerWick = Math.min(last.close, last.open) - last.low;
+
+                if (isHighVol && lowerWick > (body * 0.5)) {
+                    return {
+                        detected: true,
+                        signal: 'LONG',
+                        message: '🐳 STOPPING VOL: Cá mập đang đỡ giá. Có thể bắt đáy.',
+                        confidence: 75
+                    };
+                }
+                return { detected: false };
+            },
+
+            // 3. MM Pressure Analysis (Order Book)
+            analyzeMMPressure(orderBook) {
+                const bidsVol = orderBook.bids.reduce((sum, [price, qty]) => sum + parseFloat(qty), 0);
+                const asksVol = orderBook.asks.reduce((sum, [price, qty]) => sum + parseFloat(qty), 0);
+                const ratio = bidsVol / asksVol;
+
+                if (ratio > 2.0) {
+                    return {
+                        pressure: 'BULLISH',
+                        message: `🛡️ MM SUPPORT: Lực đỡ gấp ${ratio.toFixed(1)}x lực bán.`,
+                        ratio: ratio.toFixed(2)
+                    };
+                } else if (ratio < 0.5) {
+                    return {
+                        pressure: 'BEARISH',
+                        message: `🧱 MM WALL: Tường bán dày gấp ${(1 / ratio).toFixed(1)}x mua.`,
+                        ratio: ratio.toFixed(2)
+                    };
+                } else {
+                    return {
+                        pressure: 'NEUTRAL',
+                        message: 'Cân bằng.',
+                        ratio: ratio.toFixed(2)
+                    };
+                }
+            },
+
+            // 4. Wash Trading Detection
+            detectWashTrading(candles, stats) {
+                const last = candles[candles.length - 1];
+                const priceChange = (last.close - last.open) / last.open;
+                const volumeChange = parseFloat(stats.priceChangePercent) / 100;
+
+                // Giá tăng > 2% nhưng volume không tương xứng
+                if (priceChange > 0.02 && Math.abs(volumeChange) < 0.01) {
+                    return {
+                        detected: true,
+                        message: `👻 WASH TRADING: Giá tăng ${(priceChange * 100).toFixed(1)}% nhưng volume đứng im. Cẩn thận bẫy!`,
+                        confidence: 70
+                    };
+                }
+                return { detected: false };
+            }
+        };
+
+        // ===== MAIN APP =====
+        function App() {
+            const [searchInput, setSearchInput] = useState('');
+            const [loading, setLoading] = useState(false);
+            const [error, setError] = useState(null);
+            const [results, setResults] = useState(null);
+
+            const handleSearch = async (e) => {
+                e.preventDefault();
+                if (!searchInput.trim()) return;
+
+                setLoading(true);
+                setError(null);
+                setResults(null);
+
+                try {
+                    const symbol = searchInput.toUpperCase().replace('USDT', '');
+
+                    // Fetch data from Binance
+                    const [candles, orderBook, stats] = await Promise.all([
+                        BinanceService.getKlines(symbol),
+                        BinanceService.getOrderBook(symbol),
+                        BinanceService.get24hStats(symbol)
+                    ]);
+
+                    // Run MM Hunter analysis
+                    const sfp = MMHunter.detectSFP(candles);
+                    const stoppingVol = MMHunter.detectStoppingVolume(candles);
+                    const mmPressure = MMHunter.analyzeMMPressure(orderBook);
+                    const washTrading = MMHunter.detectWashTrading(candles, stats);
+
+                    // Determine overall signal
+                    let signal = 'NEUTRAL';
+                    let confidence = 50;
+                    let alerts = [];
+
+                    if (sfp.detected) {
+                        signal = 'SHORT';
+                        confidence = sfp.confidence;
+                        alerts.push(sfp.message);
+                    } else if (stoppingVol.detected) {
+                        signal = 'LONG';
+                        confidence = stoppingVol.confidence;
+                        alerts.push(stoppingVol.message);
+                    }
+
+                    if (washTrading.detected) {
+                        alerts.push(washTrading.message);
+                    }
+
+                    alerts.push(mmPressure.message);
+
+                    setResults({
+                        symbol: symbol + 'USDT',
+                        signal,
+                        confidence,
+                        currentPrice: parseFloat(stats.lastPrice),
+                        priceChange24h: parseFloat(stats.priceChangePercent),
+                        volume24h: parseFloat(stats.volume),
+                        mmPressure: mmPressure.pressure,
+                        mmRatio: mmPressure.ratio,
+                        alerts
+                    });
+
+                } catch (err) {
+                    console.error(err);
+                    setError('Không thể lấy dữ liệu. Vui lòng kiểm tra mã coin và thử lại.');
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            return (
+                <div>
+                    <header className="header">
+                        <h1>🎯 AI CRYPTO RADAR</h1>
+                        <p>Phân tích thị trường crypto bằng MM Hunter Algorithms</p>
+                        <span className="mode-badge mode-free">🆓 FREE MODE - No API Key Required</span>
+                    </header>
+
+                    <div className="container">
+                        <div className="hero">
+                            <h2>
+                                RADAR <span className="gradient-text">TÍN HIỆU</span> THỊ TRƯỜNG
+                            </h2>
+                            <p>
+                                Phân tích thời gian thực bằng thuật toán MM Hunter.
+                                Phát hiện SFP, Wash Trading, Stopping Volume và áp lực Market Maker.
+                            </p>
+                        </div>
+
+                        <div className="search-container">
+                            <div className="search-glow"></div>
+                            <form className="search-box" onSubmit={handleSearch}>
+                                <input
+                                    type="text"
+                                    value={searchInput}
+                                    onChange={(e) => setSearchInput(e.target.value)}
+                                    placeholder="NHẬP MÃ CẶP (VD: BTC, ETH)..."
+                                    disabled={loading}
+                                />
+                                <button type="submit" disabled={loading || !searchInput}>
+                                    {loading ? 'ĐANG QUÉT' : 'PHÂN TÍCH'}
+                                </button>
+                            </form>
+                        </div>
+
+                        {loading && (
+                            <div className="loader">
+                                <div className="radar-circle">
+                                    <div className="radar-line"></div>
+                                </div>
+                                <p style={{ fontFamily: 'Orbitron', fontSize: '1.2rem', color: '#00f0ff' }}>
+                                    ĐANG QUÉT THỊ TRƯỜNG...
+                                </p>
+                            </div>
+                        )}
+
+                        {error && (
+                            <div className="error">
+                                <h3>LỖI QUÉT DỮ LIỆU</h3>
+                                <p>{error}</p>
+                            </div>
+                        )}
+
+                        {results && !loading && (
+                            <div className="results">
+                                <div className="signal-card">
+                                    <div className="signal-header">
+                                        <div className="signal-title">{results.symbol}</div>
+                                        <div className={`signal-badge signal-${results.signal.toLowerCase()}`}>
+                                            {results.signal} - {results.confidence}%
+                                        </div>
+                                    </div>
+
+                                    <div className="signal-content">
+                                        <div className="metric">
+                                            <div className="metric-label">Giá hiện tại</div>
+                                            <div className="metric-value">${results.currentPrice.toLocaleString()}</div>
+                                        </div>
+                                        <div className="metric">
+                                            <div className="metric-label">Thay đổi 24h</div>
+                                            <div className="metric-value" style={{ color: results.priceChange24h > 0 ? '#00ff9d' : '#ff003c' }}>
+                                                {results.priceChange24h > 0 ? '+' : ''}{results.priceChange24h.toFixed(2)}%
+                                            </div>
+                                        </div>
+                                        <div className="metric">
+                                            <div className="metric-label">MM Pressure</div>
+                                            <div className="metric-value" style={{
+                                                color: results.mmPressure === 'BULLISH' ? '#00ff9d' :
+                                                    results.mmPressure === 'BEARISH' ? '#ff003c' : '#6b7280'
+                                            }}>
+                                                {results.mmPressure}
+                                            </div>
+                                        </div>
+                                        <div className="metric">
+                                            <div className="metric-label">Bid/Ask Ratio</div>
+                                            <div className="metric-value">{results.mmRatio}</div>
+                                        </div>
+                                    </div>
+
+                                    {results.alerts.length > 0 && (
+                                        <div className="alert-box">
+                                            {results.alerts.map((alert, i) => (
+                                                <p key={i}>• {alert}</p>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    <footer>
+                        <p>
+                            AI Crypto Radar sử dụng MM Hunter Algorithms + Binance API (miễn phí).
+                        </p>
+                        <p className="disclaimer">
+                            MIỄN TRỪ TRÁCH NHIỆM: Công cụ này chỉ mang tính chất tham khảo và giải trí.
+                            Đây KHÔNG phải lời khuyên đầu tư. Hãy luôn tự nghiên cứu (DYOR).
+                        </p>
+                    </footer>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+
+        console.log('✅ Hybrid Crypto Radar loaded successfully!');
+    </script>
+</body>
+
+</html>

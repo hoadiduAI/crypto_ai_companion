@@ -1,1 +1,1 @@
-worker: python alert_bot.py
+web: uvicorn ai_chat_api:app --host 0.0.0.0 --port $PORT

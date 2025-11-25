@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Markdown Table Test</title>
+    <script src="markdown-formatter.js"></script>
+    <style>
+        :root {
+            --bg-primary: #0a0e27;
+            --bg-secondary: #141b3a;
+            --bg-card: rgba(20, 27, 58, 0.6);
+            --accent-primary: #00d4ff;
+            --accent-secondary: #7c3aed;
+            --accent-gradient: linear-gradient(135deg, #00d4ff 0%, #7c3aed 100%);
+            --text-primary: #ffffff;
+            --text-secondary: #a0aec0;
+            --border-color: rgba(0, 212, 255, 0.2);
+        }
+
+        body {
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            font-family: sans-serif;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: var(--bg-card);
+            padding: 20px;
+            border-radius: 10px;
+            border: 1px solid var(--border-color);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>Markdown Table Test</h1>
+        <div id="output"></div>
+    </div>
+
+    <script>
+        const markdownTable = `
+Here is a sample table:
+
+| Coin | Price | Change |
+| :--- | :--- | :--- |
+| BTC | $50,000 | +5% |
+| ETH | $3,000 | +2% |
+| SOL | $100 | -1% |
+
+End of table.
+        `;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const outputDiv = document.getElementById('output');
+            outputDiv.innerHTML = formatMarkdown(markdownTable);
+        });
+    </script>
+</body>
+
+</html>

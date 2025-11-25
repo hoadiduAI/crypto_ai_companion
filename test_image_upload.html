@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Test Image Upload Logic</title>
+</head>
+
+<body>
+    <div id="output"></div>
+
+    <script>
+        // Mock variables
+        let currentImage = { name: 'test.png', size: 12345 };
+        let currentImageDataUrl = 'data:image/png;base64,dummy';
+        const API_URL = 'http://localhost:8000';
+
+        // Mock UI functions
+        function removeImage() {
+            console.log('removeImage called');
+            currentImage = null;
+            currentImageDataUrl = null;
+        }
+
+        function addMessage(type, content, imageUrl) {
+            console.log(`addMessage called: type=${type}, content=${content}, hasImage=${!!imageUrl}`);
+        }
+
+        function showTypingIndicator() { }
+        function removeTypingIndicator() { }
+
+        // Mock fetch
+        window.fetch = async (url, options) => {
+            console.log(`Fetch called to ${url}`);
+            if (options.body instanceof FormData) {
+                const formData = options.body;
+                const hasImage = formData.has('image');
+                const imageValue = formData.get('image');
+
+                const resultDiv = document.getElementById('output');
+                if (hasImage && imageValue) {
+                    resultDiv.innerHTML = '<h2 style="color: green;">SUCCESS: Image found in FormData!</h2>';
+                    resultDiv.innerHTML += `<p>Image object: ${JSON.stringify(imageValue)}</p>`;
+                } else {
+                    resultDiv.innerHTML = '<h2 style="color: red;">FAILURE: No image in FormData!</h2>';
+                }
+            }
+            return { ok: true, json: async () => ({}) };
+        };
+
+        // The fixed sendMessage function
+        async function sendMessage() {
+            const message = "Analyze this";
+
+            if (!message && !currentImage) return;
+
+            // Store image for sending before clearing UI
+            const imageToSend = currentImage;
+
+            // Add user message with image preview if available
+            addMessage('user', message || 'Phân tích chart này', currentImageDataUrl);
+
+            // Clear preview
+            removeImage();
+
+            try {
+                // Prepare form data
+                const formData = new FormData();
+                formData.append('text', message || 'Phân tích chart này giúp tôi');
+
+                if (imageToSend) {
+                    formData.append('image', imageToSend);
+                }
+
+                // Call API
+                await fetch(`${API_URL}/analyze`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+            } catch (error) {
+                console.error(error);
+            }
+        }
+
+        // Run test
+        sendMessage();
+    </script>
+</body>
+
+</html>
