@@ -559,183 +559,144 @@
                     <div class="input-actions">
                         <button class="action-btn" onclick="document.getElementById('imageUpload').click()"
                             title="Upload ảnh chart">
-                            📷
-                        </button>
-                        <input type="file" id="imageUpload" accept="image/*" style="display: none;"
-                            onchange="handleImageUpload(event)">
-                    </div>
-                    <textarea class="input-field" id="messageInput" if (!message && !currentImage) return; // Hide
-                        welcome screen const welcomeScreen=document.getElementById('welcomeScreen'); if (welcomeScreen)
-                        { welcomeScreen.style.display='none' ; } // Store image for sending before clearing UI const
-                        imageToSend=currentImage; // Add user message with image preview if available addMessage('user',
-                        message || 'Phân tích chart này' , currentImageDataUrl); input.value='' ;
-                        input.style.height='auto' ; // Clear preview removeImage(); // Disable send button const
-                        sendBtn=document.getElementById('sendBtn'); sendBtn.disabled=true; // Show typing indicator
-                        showTypingIndicator(); try { // Prepare form data const formData=new FormData();
-                        formData.append('text', message || 'Phân tích chart này giúp tôi' ); if (imageToSend) {
-                        formData.append('image', imageToSend); } // Call API const response=await
-                        fetch(`${API_URL}/analyze`, { method: 'POST' , body: formData }); removeTypingIndicator(); if
-                        (response.ok) { const result=await response.json(); addAIMessage(result); } else { const
-                        error=await response.text(); addMessage('ai', `❌ Lỗi: ${error}`); } } catch (error) {
-                        removeTypingIndicator(); addMessage('ai', `❌ Lỗi kết nối: ${error.message}\n\nVui lòng kiểm
-                        tra:\n1. Backend đã chạy chưa? (python ai_chat_api.py)\n2. GEMINI_API_KEY đã set chưa?`); }
-                        finally { sendBtn.disabled=false; currentImage=null; } } // Add message to chat function
-                        addMessage(type, content, imageUrl=null) { const
-                        messagesContainer=document.getElementById('chatMessages'); const
-                        messageDiv=document.createElement('div'); messageDiv.className=`message ${type}`; const now=new
-                        Date(); const timeString=now.toLocaleTimeString('vi-VN', { hour: '2-digit' , minute: '2-digit'
-                        }); messageDiv.innerHTML=` <div class="message-avatar">${type === 'ai' ? '🤖' : '👤'}</div>
-                <div class="message-content">
-                    <div class="message-time">${timeString}</div>
-                    <div class="message-text">${content}</div>
-                    ${imageUrl ? `<div class="message-image"><img src="${imageUrl}" alt="Chart"></div>` : ''}
-                </div>
-                `;
 
-                messagesContainer.appendChild(messageDiv);
-                messagesContainer.scrollTop = messagesContainer.scrollHeight;
-                }
+                            const now = new Date();
+                            const timeString = now.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
 
-                // Add AI message from API response
-                function addAIMessage(result) {
-                const messagesContainer = document.getElementById('chatMessages');
-                const messageDiv = document.createElement('div');
-                messageDiv.className = 'message ai';
+                            let content = `<div class="message-time">${timeString}</div>`;
 
-                const now = new Date();
-                const timeString = now.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+                            // Add market data if available
+                            if (result.market_data && result.symbol) {
+                            const data = result.market_data;
+                            content += `
+                            <div class="message-text"><strong>📊 ${result.symbol}</strong>
 
-                let content = `<div class="message-time">${timeString}</div>`;
+                                Giá: $${data.price?.toLocaleString() || 'N/A'}
+                                Thay đổi 24h: ${data.change_24h >= 0 ? '+' : ''}${data.change_24h?.toFixed(2) || 0}%
+                                Volume: $${(data.quote_volume || 0).toLocaleString()}
+                                ${data.funding_rate !== undefined ? `Funding Rate: ${data.funding_rate.toFixed(4)}%` :
+                                ''}
 
-                // Add market data if available
-                if (result.market_data && result.symbol) {
-                const data = result.market_data;
-                content += `
-                <div class="message-text"><strong>📊 ${result.symbol}</strong>
+                                ---
 
-                    Giá: $${data.price?.toLocaleString() || 'N/A'}
-                    Thay đổi 24h: ${data.change_24h >= 0 ? '+' : ''}${data.change_24h?.toFixed(2) || 0}%
-                    Volume: $${(data.quote_volume || 0).toLocaleString()}
-                    ${data.funding_rate !== undefined ? `Funding Rate: ${data.funding_rate.toFixed(4)}%` : ''}
+                                ${typeof formatMarkdown === 'function' ? formatMarkdown(result.analysis || 'Không có
+                                phân tích') :
+                                (result.analysis || 'Không có phân tích')}
+                            </div>
+                            `;
+                            } else {
+                            content += `<div class="message-text">${typeof formatMarkdown === 'function' ?
+                                formatMarkdown(result.analysis || result.error || 'Không có phản hồi') :
+                                (result.analysis ||
+                                result.error || 'Không có phản hồi')}</div>`;
+                            }
 
-                    ---
+                            messageDiv.innerHTML = `
+                            <div class="message-avatar">🤖</div>
+                            <div class="message-content">
+                                ${content}
+                            </div>
+                            `;
 
-                    ${typeof formatMarkdown === 'function' ? formatMarkdown(result.analysis || 'Không có phân tích') :
-                    (result.analysis || 'Không có phân tích')}
-                </div>
-                `;
-                } else {
-                content += `<div class="message-text">${typeof formatMarkdown === 'function' ?
-                    formatMarkdown(result.analysis || result.error || 'Không có phản hồi') : (result.analysis ||
-                    result.error || 'Không có phản hồi')}</div>`;
-                }
+                            messagesContainer.appendChild(messageDiv);
+                            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                            }
 
-                messageDiv.innerHTML = `
-                <div class="message-avatar">🤖</div>
-                <div class="message-content">
-                    ${content}
-                </div>
-                `;
+                            // Show typing indicator
+                            function showTypingIndicator() {
+                            const messagesContainer = document.getElementById('chatMessages');
+                            const typingDiv = document.createElement('div');
+                            typingDiv.className = 'message ai';
+                            typingDiv.id = 'typingIndicator';
+                            typingDiv.innerHTML = `
+                            <div class="message-avatar">🤖</div>
+                            <div class="message-content">
+                                <div class="typing-indicator">
+                                    <div class="typing-dot"></div>
+                                    <div class="typing-dot"></div>
+                                    <div class="typing-dot"></div>
+                                </div>
+                            </div>
+                            `;
+                            messagesContainer.appendChild(typingDiv);
+                            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                            }
 
-                messagesContainer.appendChild(messageDiv);
-                messagesContainer.scrollTop = messagesContainer.scrollHeight;
-                }
+                            // Remove typing indicator
+                            function removeTypingIndicator() {
+                            const indicator = document.getElementById('typingIndicator');
+                            if (indicator) {
+                            indicator.remove();
+                            }
+                            }
 
-                // Show typing indicator
-                function showTypingIndicator() {
-                const messagesContainer = document.getElementById('chatMessages');
-                const typingDiv = document.createElement('div');
-                typingDiv.className = 'message ai';
-                typingDiv.id = 'typingIndicator';
-                typingDiv.innerHTML = `
-                <div class="message-avatar">🤖</div>
-                <div class="message-content">
-                    <div class="typing-indicator">
-                        <div class="typing-dot"></div>
-                        <div class="typing-dot"></div>
-                        <div class="typing-dot"></div>
-                    </div>
-                </div>
-                `;
-                messagesContainer.appendChild(typingDiv);
-                messagesContainer.scrollTop = messagesContainer.scrollHeight;
-                }
+                            // Handle image upload
+                            function handleImageUpload(event) {
+                            const file = event.target.files[0];
+                            if (!file) return;
 
-                // Remove typing indicator
-                function removeTypingIndicator() {
-                const indicator = document.getElementById('typingIndicator');
-                if (indicator) {
-                indicator.remove();
-                }
-                }
+                            currentImage = file;
 
-                // Handle image upload
-                function handleImageUpload(event) {
-                const file = event.target.files[0];
-                if (!file) return;
+                            // Show preview
+                            const reader = new FileReader();
+                            reader.onload = function (e) {
+                            currentImageDataUrl = e.target.result;
+                            const previewContainer = document.getElementById('imagePreviewContainer');
+                            previewContainer.innerHTML = `
+                            <div class="preview-item">
+                                <img src="${currentImageDataUrl}" class="preview-image" alt="Preview">
+                                <button class="remove-image-btn" onclick="removeImage()">×</button>
+                            </div>
+                            `;
+                            previewContainer.style.display = 'block';
+                            };
+                            reader.readAsDataURL(file);
 
-                currentImage = file;
+                            // Reset file input so same file can be selected again if needed
+                            event.target.value = '';
+                            }
 
-                // Show preview
-                const reader = new FileReader();
-                reader.onload = function (e) {
-                currentImageDataUrl = e.target.result;
-                const previewContainer = document.getElementById('imagePreviewContainer');
-                previewContainer.innerHTML = `
-                <div class="preview-item">
-                    <img src="${currentImageDataUrl}" class="preview-image" alt="Preview">
-                    <button class="remove-image-btn" onclick="removeImage()">×</button>
-                </div>
-                `;
-                previewContainer.style.display = 'block';
-                };
-                reader.readAsDataURL(file);
+                            // Remove image
+                            function removeImage() {
+                            currentImage = null;
+                            currentImageDataUrl = null;
+                            const previewContainer = document.getElementById('imagePreviewContainer');
+                            previewContainer.innerHTML = '';
+                            previewContainer.style.display = 'none';
+                            }
 
-                // Reset file input so same file can be selected again if needed
-                event.target.value = '';
-                }
+                            // Handle key press
+                            function handleKeyPress(event) {
+                            if (event.key === 'Enter' && !event.shiftKey) {
+                            event.preventDefault();
+                            sendMessage();
+                            }
+                            }
 
-                // Remove image
-                function removeImage() {
-                currentImage = null;
-                currentImageDataUrl = null;
-                const previewContainer = document.getElementById('imagePreviewContainer');
-                previewContainer.innerHTML = '';
-                previewContainer.style.display = 'none';
-                }
+                            // Send suggestion
+                            function sendSuggestion(text) {
+                            document.getElementById('messageInput').value = text;
+                            sendMessage();
+                            }
 
-                // Handle key press
-                function handleKeyPress(event) {
-                if (event.key === 'Enter' && !event.shiftKey) {
-                event.preventDefault();
-                sendMessage();
-                }
-                }
+                            // Show error
+                            function showError(message) {
+                            const errorContainer = document.getElementById('errorContainer');
+                            errorContainer.innerHTML = `<div class="error-message">${message}</div>`;
+                            setTimeout(() => {
+                            errorContainer.innerHTML = '';
+                            }, 5000);
+                            }
 
-                // Send suggestion
-                function sendSuggestion(text) {
-                document.getElementById('messageInput').value = text;
-                sendMessage();
-                }
+                            // Auto-resize textarea
+                            document.getElementById('messageInput').addEventListener('input', function () {
+                            this.style.height = 'auto';
+                            this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+                            });
 
-                // Show error
-                function showError(message) {
-                const errorContainer = document.getElementById('errorContainer');
-                errorContainer.innerHTML = `<div class="error-message">${message}</div>`;
-                setTimeout(() => {
-                errorContainer.innerHTML = '';
-                }, 5000);
-                }
-
-                // Auto-resize textarea
-                document.getElementById('messageInput').addEventListener('input', function () {
-                this.style.height = 'auto';
-                this.style.height = Math.min(this.scrollHeight, 120) + 'px';
-                });
-
-                // Initialize
-                checkAPIHealth();
-                </script>
+                            // Initialize
+                            checkAPIHealth();
+                            </script>
 </body>
 
 </html>
